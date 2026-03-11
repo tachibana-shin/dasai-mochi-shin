@@ -14,11 +14,45 @@
 #include <time.h>
 #include <vector>
 
+// allow edit
 #define PIN_SDA 20
 #define PIN_SCL 21
 #define PIN_TAP 10
 
 #define WIFI_AP_NAME "Dasai Mochi Shin"
+
+const unsigned long weatherInterval = 1800000; // 30 mins
+const char *ntpServer = "time.google.com";
+const long gmtOffset_sec = 7 * 3600;
+const int daylightOffset_sec = 0;
+
+#define WEATHER_SERVER = "http://api.open-meteo.com/v1/forecast?latitude=10.762622&longitude=106.660172&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,is_day"
+
+//////////
+
+#define OFFSET_DATE_X 2
+#define OFFSET_DATE_Y 10
+
+#define OFFSET_STATUSBAR_ICON_RIGHT_X 100
+#define OFFSET_STATUSBAR_ICON_RIGHT_Y 10
+
+#define OFFSET_TIME_X 2
+#define OFFSET_TIME_Y 45
+
+#define OFFSET_SEC_X 72
+#define OFFSET_SEC_Y 35
+
+#define OFFSET_WEATHER_ICON_X 88
+#define OFFSET_WEATHER_ICON_Y 40
+
+#define OFFSET_WEATHER_TEMP_X 88
+#define OFFSET_WEATHER_TEMP_Y 55
+
+#define OFFSET_HUM_X 104
+#define OFFSET_HUM_Y 33
+
+#define OFFSET_WIND_X 104
+#define OFFSET_WIND_Y 42
 
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/U8X8_PIN_NONE);
 OneButton button;
@@ -27,14 +61,13 @@ ChronosESP32 chronos("Mochi Shin");
 
 int brightness = 150;
 int onlineTemp = 0;
+int onlineHumidity = 0;
+float onlineWindSpeed = 0;
+int onlineWeatherCode = 0;
+bool onlineIsDay = true;
 unsigned long lastWeatherUpdate = 0;
-const unsigned long weatherInterval = 1800000; // 30 mins
 bool wifiEnabled = true;
 bool isPortalActive = false;
-
-const char *ntpServer = "time.google.com";
-const long gmtOffset_sec = 7 * 3600;
-const int daylightOffset_sec = 0;
 
 struct WifiEntry {
   String ssid;
@@ -200,8 +233,6 @@ static void handleClick() {
   saveBrightness();
 }
 
-// saveWifiList moved up
-
 // Hàm xử lý khi nhấn 2 chạm (Giảm độ sáng)
 static void handleDoubleclick() {
   Serial.println("Double clicked!");
@@ -235,23 +266,25 @@ static void handleTripleClick() {
 // saveWifiList moved up
 
 bool updateOnlineWeather() {
-  Serial.println("weather");
   if (WiFi.status() != WL_CONNECTED)
     return false;
 
   HTTPClient http;
-  // Use wttr.in for a simple JSON response without API key
-  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-  http.begin("http://wttr.in/HoChiMinh?format=j1");
+  // Use Open-Meteo API for HCMC (Latitude: 10.762622, Longitude: 106.660172)
+  http.begin(WEATHER_SERVER);
   int httpCode = http.GET();
 
   if (httpCode == HTTP_CODE_OK) {
     String payload = http.getString();
-    Serial.println(payload);
     JsonDocument doc;
     deserializeJson(doc, payload);
-    onlineTemp = doc["current_condition"][0]["temp_C"].as<int>();
-    Serial.println("Updated online weather: " + String(onlineTemp) + "C");
+    onlineTemp = doc["current"]["temperature_2m"].as<int>();
+    onlineHumidity = doc["current"]["relative_humidity_2m"].as<int>();
+    onlineWindSpeed = doc["current"]["wind_speed_10m"].as<float>();
+    onlineWeatherCode = doc["current"]["weather_code"].as<int>();
+    onlineIsDay = doc["current"]["is_day"].as<int>() == 1;
+    Serial.printf("Updated Open-Meteo: %dC, %d%%, %.1fm/s, Code: %d, Day: %d\n", 
+                  onlineTemp, onlineHumidity, onlineWindSpeed, onlineWeatherCode, onlineIsDay);
   } else {
     Serial.println("Weather update failed: " + String(httpCode));
   }
@@ -263,7 +296,7 @@ bool updateOnlineWeather() {
 bool syncNTP() {
   if (WiFi.status() == WL_CONNECTED) {
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-
+    Serial.println("NTP sync started");
     return true;
   }
   return false;
@@ -301,75 +334,102 @@ void drawStatusBar() {
   } else {
     dateStr = chronos.getTime("%d %b");
   }
-  u8g2.drawStr(2, 10, dateStr.c_str());
+  u8g2.drawStr(OFFSET_DATE_X, OFFSET_DATE_Y, dateStr.c_str());
 
-  // Right: Icons
-  int iconX = 100, iconY = 10;
-  // bluetooth
-  int iconX_BT = 100;
+  // Bluetooth Icon
   u8g2.setFont(u8g2_font_open_iconic_embedded_1x_t);
-  u8g2.drawGlyph(iconX, iconY, 74);
+  u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X, OFFSET_STATUSBAR_ICON_RIGHT_Y, 74);
   if (!chronos.isConnected()) {
-    u8g2.drawLine(iconX, iconY, iconX_BT + 7, iconY - 7);
+    u8g2.drawLine(OFFSET_STATUSBAR_ICON_RIGHT_X, OFFSET_STATUSBAR_ICON_RIGHT_Y, OFFSET_STATUSBAR_ICON_RIGHT_X + 7, OFFSET_STATUSBAR_ICON_RIGHT_Y - 7);
   }
 
-  iconX = 110;
   // Wifi Icon
-  int iconX_WF = 112;
   u8g2.setFont(u8g2_font_open_iconic_www_1x_t);
-  u8g2.drawGlyph(iconX, 10, 0x0051);
+  u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X, OFFSET_STATUSBAR_ICON_RIGHT_Y, 0x0051);
   if (WiFi.status() != WL_CONNECTED) {
-    u8g2.drawLine(iconX + 1, 10, iconX_WF + 7, iconY - 7);
+    u8g2.drawLine(OFFSET_STATUSBAR_ICON_RIGHT_X + 1, OFFSET_STATUSBAR_ICON_RIGHT_Y, OFFSET_STATUSBAR_ICON_RIGHT_X + 12 + 7,OFFSET_STATUSBAR_ICON_RIGHT_Y+12 - 7);
   }
 }
 
 void drawMainClock() {
   // Left: Clock
   u8g2.setFont(u8g2_font_logisoso24_tn);
-  String hourStr, minuteStr, ampmStr;
+  String hourStr, minuteStr, secStr, ampmStr;
 
-  if (WiFi.status() == WL_CONNECTED) {
   struct tm timeinfo;
-    if (getLocalTime(&timeinfo)) {
-      char h[3], m[3];
-      strftime(h, sizeof(h), "%I", &timeinfo); // 12-hour
-      strftime(m, sizeof(m), "%M", &timeinfo);
-      hourStr = String(h);
-      minuteStr = String(m);
-      char p[3];
-      strftime(p, sizeof(p), "%p", &timeinfo);
-      ampmStr = String(p);
-    } else {
-      hourStr = chronos.getHourZ();
-      minuteStr = chronos.getTime("%M");
-      ampmStr = chronos.getAmPmC();
-    }
+  bool timeValid = false;
+  if (WiFi.status() == WL_CONNECTED && getLocalTime(&timeinfo)) {
+    timeValid = true;
+    char h[3], m[3], s[3], p[3];
+    strftime(h, sizeof(h), "%I", &timeinfo); // 12-hour
+    strftime(m, sizeof(m), "%M", &timeinfo);
+    strftime(s, sizeof(s), "%S", &timeinfo);
+    strftime(p, sizeof(p), "%p", &timeinfo);
+    hourStr = String(h);
+    minuteStr = String(m);
+    secStr = String(s);
+    ampmStr = String(p);
   } else {
     hourStr = chronos.getHourZ();
     minuteStr = chronos.getTime("%M");
+    secStr = chronos.getTime("%S");
     ampmStr = chronos.getAmPmC();
   }
 
   String timeStr = hourStr + ":" + minuteStr;
-  u8g2.drawStr(2, 45, timeStr.c_str());
+  u8g2.drawStr(OFFSET_TIME_X, OFFSET_Y_TIME, timeStr.c_str());
 
   u8g2.setFont(u8g2_font_6x10_tf);
-  u8g2.drawStr(72, 45, ampmStr.c_str());
+  u8g2.drawStr(OFFSET_SEC_X, OFFSET_SEC_Y, secStr.c_str()); // Seconds above AM/PM
+  u8g2.drawStr(OFFSET_SEC_X, OFFSET_SEC_Y + 10, ampmStr.c_str());
 
   // Right: Weather
-  int weatherX = 90;
   u8g2.setFont(u8g2_font_open_iconic_weather_2x_t);
-  u8g2.drawGlyph(weatherX, 40, 0x45); // Sun icon
+  
+  uint8_t iconGlyph = 0x45; // Default: Sun
+  int weatherCode = 0;
+  bool isDay = true;
+
+  if (WiFi.status() == WL_CONNECTED) {
+    weatherCode = onlineWeatherCode;
+    isDay = onlineIsDay;
+  }
+  
+  // WMO Code Mapping to Open Iconic Weather
+  if (weatherCode == 0) iconGlyph = isDay ? 0x45 : 0x44; // Sun / Moon
+  else if (weatherCode == 1 || weatherCode == 2) iconGlyph = 0x46; // Cloud + Sun
+  else if (weatherCode == 3 || weatherCode == 45 || weatherCode == 48) iconGlyph = 0x41; // Cloud
+  else if ((weatherCode >= 51 && weatherCode <= 65) || (weatherCode >= 80 && weatherCode <= 82)) iconGlyph = 0x43; // Rain
+  else if ((weatherCode >= 71 && weatherCode <= 77) || (weatherCode >= 85 && weatherCode <= 86)) iconGlyph = 0x42; // Snow/Umbrella
+  else if (weatherCode >= 95) iconGlyph = 0x47; // Thunder
+
+  u8g2.drawGlyph(OFFSET_WEATHER_ICON_X, OFFSET_WEATHER_ICON_Y, iconGlyph); 
 
   u8g2.setFont(u8g2_font_ncenB10_tr);
   int temp = 0;
+  int humidity = 0;
+  float wind = 0;
+
   if (WiFi.status() == WL_CONNECTED) {
     temp = onlineTemp;
+    humidity = onlineHumidity;
+    wind = onlineWindSpeed;
   } else if (chronos.getWeatherCount() > 0) {
     temp = chronos.getWeatherAt(0).temp;
+    // ChronosESP32 might not provide humidity/wind easily in this snippet, 
+    // but we'll show what we have.
   }
-  String tempStr = String(temp) + "°C";
-  u8g2.drawStr(weatherX, 55, tempStr.c_str());
+
+  u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
+  String tempStr = String(temp) + "\u00B0C";
+  u8g2.drawStr(OFFSET_WEATHER_TEMP_X, OFFSET_WEATHER_TEMP_Y, tempStr.c_str());
+
+  // Show Humidity and Wind Speed on the right of the weather icon
+  u8g2.setFont(u8g2_font_5x7_tf);
+  String humStr = "H:" + String(humidity) + "%";
+  String windStr = "W:" + String(wind, 1) + "m/s";
+  u8g2.drawStr(OFFSET_HUM_X, OFFSET_HUM_Y, humStr.c_str());
+  u8g2.drawStr(OFFSET_WIND_X, OFFSET_WIND_Y, windStr.c_str());
 }
 
 void setup(void) {
