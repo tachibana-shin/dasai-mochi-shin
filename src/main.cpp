@@ -26,11 +26,30 @@ const char *ntpServer = "time.google.com";
 const long gmtOffset_sec = 7 * 3600;
 const int daylightOffset_sec = 0;
 
-#define LANG_CODE "vi"
+#define LANG_CODE "vi" // "vi" or "ja"
+
+struct LocaleInfo {
+  const char* am;
+  const char* pm;
+  const char* months[12];
+  const char* days[7];
+};
+
+const LocaleInfo locale_vi = {
+  "SA", "CH",
+  {"thg 1", "thg 2", "thg 3", "thg 4", "thg 5", "thg 6", "thg 7", "thg 8", "thg 9", "thg 10", "thg 11", "thg 12"},
+  {"CN", "T2", "T3", "T4", "T5", "T6", "T7"},
+};
+
+const LocaleInfo* getActiveLocale() {
+  return &locale_vi;
+}
+
 #define WEATHER_SERVER "http://api.open-meteo.com/v1/forecast?latitude=10.762622&longitude=106.660172&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,is_day&daily=sunrise,sunset&timezone=auto"
 
-String onlineSunrise = "";
-String onlineSunset = "";
+String onlineSunrise = "--:--";
+String onlineSunset = "--:--";
+volatile bool weatherUpdating = false;
 
 //////////
 
@@ -64,10 +83,10 @@ Preferences preferences;
 ChronosESP32 chronos("Mochi Shin");
 
 int brightness = 150;
-int onlineTemp = 0;
-int onlineHumidity = 0;
-float onlineWindSpeed = 0;
-int onlineWeatherCode = 0;
+int onlineTemp = -999;
+int onlineHumidity = -1;
+float onlineWindSpeed = -1.0;
+int onlineWeatherCode = -1;
 bool onlineIsDay = true;
 unsigned long lastWeatherUpdate = 0;
 bool wifiEnabled = true;
@@ -84,7 +103,6 @@ void saveBrightness() {
   preferences.begin("settings", false);  
   preferences.putInt("light", brightness); 
   preferences.end();
-  Serial.println("Đã lưu độ sáng vào Flash!");
 }
 void saveWifiList() {
   JsonDocument doc;
@@ -263,37 +281,59 @@ static void handleTripleClick() {
 
 // saveWifiList moved up
 
-bool updateOnlineWeather() {
-  if (WiFi.status() != WL_CONNECTED)
-    return false;
+void weatherTask(void *pvParameters) {
+  weatherUpdating = true;
+  Serial.println("[Weather] Background update started...");
 
   HTTPClient http;
-  // Use Open-Meteo API for HCMC (Latitude: 10.762622, Longitude: 106.660172)
   http.begin(WEATHER_SERVER);
   int httpCode = http.GET();
 
   if (httpCode == HTTP_CODE_OK) {
     String payload = http.getString();
     JsonDocument doc;
-    deserializeJson(doc, payload);
-    onlineTemp = doc["current"]["temperature_2m"].as<int>();
-    onlineHumidity = doc["current"]["relative_humidity_2m"].as<int>();
-    onlineWindSpeed = doc["current"]["wind_speed_10m"].as<float>();
-    onlineWeatherCode = doc["current"]["weather_code"].as<int>();
-    onlineIsDay = doc["current"]["is_day"].as<int>() == 1;
+    DeserializationError error = deserializeJson(doc, payload);
 
-    // Parse Sunrise / Sunset
-    // Format is "2024-xx-xxT06:xx"
-    String sr = doc["daily"]["sunrise"][0].as<String>();
-    String ss = doc["daily"]["sunset"][0].as<String>();
-    if (sr.length() > 11) onlineSunrise = sr.substring(11);
-    if (ss.length() > 11) onlineSunset = ss.substring(11);
+    if (!error) {
+      onlineTemp = doc["current"]["temperature_2m"].as<int>();
+      onlineHumidity = doc["current"]["relative_humidity_2m"].as<int>();
+      onlineWindSpeed = doc["current"]["wind_speed_10m"].as<float>();
+      onlineWeatherCode = doc["current"]["weather_code"].as<int>();
+      onlineIsDay = doc["current"]["is_day"].as<int>() == 1;
+
+      String sr = doc["daily"]["sunrise"][0].as<String>();
+      String ss = doc["daily"]["sunset"][0].as<String>();
+      if (sr.length() > 11) onlineSunrise = sr.substring(11);
+      if (ss.length() > 11) onlineSunset = ss.substring(11);
+
+      lastWeatherUpdate = millis();
+      Serial.printf("[Weather] Success: %dC\n", onlineTemp);
+    } else {
+      Serial.println("[Weather] JSON parse failed");
+    }
   } else {
-    Serial.println("Weather update failed: " + String(httpCode));
-    http.end();
-    return false;
+    Serial.println("[Weather] HTTP failed: " + String(httpCode));
   }
   http.end();
+  
+  weatherUpdating = false;
+  vTaskDelete(NULL); // 終了時にタスクを自動削除
+}
+
+bool updateOnlineWeather() {
+  if (weatherUpdating || WiFi.status() != WL_CONNECTED)
+    return false;
+
+  // コア1でタスクを実行（コア0は通常WiFi用）
+  xTaskCreatePinnedToCore(
+      weatherTask,      // 実行関数
+      "weatherTask",    // タスク名
+      8192,             // スタックサイズ
+      NULL,             // パラメータ
+      1,                // 優先度
+      NULL,             // タスクハンドル
+      1                 // コア1で実行
+  );
 
   return true;
 }
@@ -327,35 +367,26 @@ static void syncLocalFromChronos() {
 }
 
 void drawStatusBar() {
-  u8g2.setFont(u8g2_font_6x10_tf);
+  u8g2.setFont(u8g2_font_6x10_tf); // Switch to unifont for multi-language support
 
   // Left: Date
   String dateStr;
-  if (LANG_CODE == "vi") {
-    struct tm timeinfo;
-if (WiFi.status() == WL_CONNECTED && getLocalTime(&timeinfo)) {
-  const char* thangVN[12] = {
-    "Thg 1", "Thg 2", "Thg 3", "Thg 4", "Thg 5", "Thg 6",
-    "Thg 7", "Thg 8", "Thg 9", "Thg 10", "Thg 11", "Thg 12"
-  };
-
-  char buffer[20];
-  snprintf(buffer, sizeof(buffer), "%02d %s", timeinfo.tm_mday, thangVN[timeinfo.tm_mon]);
-  dateStr = String(buffer);
-
-} else {
-  dateStr = chronos.getTime("%d %b"); // fallback
-}
-  } else {
+  const LocaleInfo* loc = getActiveLocale();
   struct tm timeinfo;
+
   if (WiFi.status() == WL_CONNECTED && getLocalTime(&timeinfo)) {
-    char buffer[20];
-    strftime(buffer, sizeof(buffer), "%d %b", &timeinfo);
+    char buffer[48];
+    if (strcmp(LANG_CODE, "ja") == 0) {
+      // Format: 3月11日(水)
+      snprintf(buffer, sizeof(buffer), "%s%02d日(%s)", loc->months[timeinfo.tm_mon], timeinfo.tm_mday, loc->days[timeinfo.tm_wday]);
+    } else {
+      // Format: T4, 11 thg 3
+      snprintf(buffer, sizeof(buffer), "%s, %02d%s", loc->days[timeinfo.tm_wday], timeinfo.tm_mday, loc->months[timeinfo.tm_mon]);
+    }
     dateStr = String(buffer);
   } else {
     dateStr = chronos.getTime("%d %b");
   }
-}
   u8g2.drawStr(OFFSET_DATE_X, OFFSET_DATE_Y, dateStr.c_str());
 
   // Bluetooth Icon
@@ -398,10 +429,9 @@ void drawMainClock() {
     ampmStr = chronos.getAmPmC();
   }
 
-  if (LANG_CODE == "vi") {
-    if (ampmStr == "AM") ampmStr = "SA";
-    else if (ampmStr == "PM") ampmStr = "CH";
-  }
+  const LocaleInfo* loc = getActiveLocale();
+  if (ampmStr == "AM") ampmStr = loc->am;
+  else if (ampmStr == "PM") ampmStr = loc->pm;
 
   String timeStr = hourStr + ":" + minuteStr;
   u8g2.drawStr(OFFSET_TIME_X, OFFSET_TIME_Y, timeStr.c_str()); // Corrected from OFFSET_Y_TIME
@@ -411,63 +441,67 @@ void drawMainClock() {
   u8g2.drawStr(OFFSET_SEC_X, OFFSET_SEC_Y + 10, ampmStr.c_str());
 
   // Right: Weather Icon
-  
-  uint8_t iconGlyph = 0x45; // Default: Sun
-  int weatherCode = 0;
+  uint8_t iconGlyph = 0x41; // デフォルト：曇り（不明）
+  int weatherCode = -1;
   bool isDay = true;
 
-  if (WiFi.status() == WL_CONNECTED) {
+  if (WiFi.status() == WL_CONNECTED && onlineWeatherCode != -1) {
     weatherCode = onlineWeatherCode;
     isDay = onlineIsDay;
+    
+    // WMOコードをアイコンにマッピング
+    if (weatherCode == 0) iconGlyph = isDay ? 0x45 : 0x44; // 太陽 / 月
+    else if (weatherCode == 1 || weatherCode == 2) iconGlyph = 0x46; // 雲 + 太陽
+    else if (weatherCode == 3 || weatherCode == 45 || weatherCode == 48) iconGlyph = 0x41; // 雲
+    else if ((weatherCode >= 51 && weatherCode <= 65) || (weatherCode >= 80 && weatherCode <= 82)) iconGlyph = 0x43; // 雨
+    else if ((weatherCode >= 71 && weatherCode <= 77) || (weatherCode >= 85 && weatherCode <= 86)) iconGlyph = 0x42; // 雪 / 傘
+    else if (weatherCode >= 95) iconGlyph = 0x47; // 雷
   }
   
-  // WMO Code Mapping to Open Iconic Weather
-  if (weatherCode == 0) iconGlyph = isDay ? 0x45 : 0x44; // Sun / Moon
-  else if (weatherCode == 1 || weatherCode == 2) iconGlyph = 0x46; // Cloud + Sun
-  else if (weatherCode == 3 || weatherCode == 45 || weatherCode == 48) iconGlyph = 0x41; // Cloud
-  else if ((weatherCode >= 51 && weatherCode <= 65) || (weatherCode >= 80 && weatherCode <= 82)) iconGlyph = 0x43; // Rain
-  else if ((weatherCode >= 71 && weatherCode <= 77) || (weatherCode >= 85 && weatherCode <= 86)) iconGlyph = 0x42; // Snow/Umbrella
-  else if (weatherCode >= 95) iconGlyph = 0x47; // Thunder
-
   u8g2.setFont(u8g2_font_open_iconic_weather_2x_t);
   u8g2.drawGlyph(OFFSET_WEATHER_ICON_X, OFFSET_WEATHER_ICON_Y, iconGlyph); 
 
   u8g2.setFont(u8g2_font_ncenB10_tr);
-  int temp = 0;
-  int humidity = 0;
-  float wind = 0;
+  String tempStr = "??";
+  int humidity = -1;
+  float wind = -1;
 
-  if (WiFi.status() == WL_CONNECTED) {
-    temp = onlineTemp;
+  if (WiFi.status() == WL_CONNECTED && onlineTemp != -999) {
+    tempStr = String(onlineTemp);
     humidity = onlineHumidity;
     wind = onlineWindSpeed;
   } else if (chronos.getWeatherCount() > 0) {
-    temp = chronos.getWeatherAt(0).temp;
-    // ChronosESP32 might not provide humidity/wind easily in this snippet, 
-    // but we'll show what we have.
+    tempStr = String(chronos.getWeatherAt(0).temp);
   }
 
   u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
-  String tempStr = String(temp) + "C";
+  if (tempStr != "??") tempStr += "C";
   u8g2.drawStr(OFFSET_WEATHER_TEMP_X, OFFSET_WEATHER_TEMP_Y, tempStr.c_str());
 
   // Sunrise / Sunset at the bottom
   if (onlineSunrise != "" && onlineSunset != "") {
     u8g2.setFont(u8g2_font_open_iconic_weather_1x_t);
-    u8g2.drawGlyph(2, 63, 0x45); // Sun icon for rise
+    u8g2.drawGlyph(2, 63, 0x45); // 日の出：太陽アイコン
     u8g2.setFont(u8g2_font_5x7_tf);
     u8g2.drawStr(12, 63, onlineSunrise.c_str());
 
     u8g2.setFont(u8g2_font_open_iconic_weather_1x_t);
-    u8g2.drawGlyph(65, 63, 0x44); // Moon/Sunset icon
+    u8g2.drawGlyph(65, 63, 0x44); // 日の入り：月アイコン
     u8g2.setFont(u8g2_font_5x7_tf);
     u8g2.drawStr(75, 63, onlineSunset.c_str());
   }
 
   // Humidity and Wind (Small)
   u8g2.setFont(u8g2_font_5x7_tf);
-  String humStr = "H" + String(humidity) + "%";
-  String windStr = "W" + String(wind, 1) + "m/s";
+  String humStr = "H";
+  String windStr = "W";
+  
+  if (humidity != -1) humStr += String(humidity) + "%";
+  else humStr += "??";
+  
+  if (wind != -1) windStr += String(wind, 1) + "m/s";
+  else windStr += "??";
+
   u8g2.drawStr(OFFSET_HUM_X, OFFSET_HUM_Y, humStr.c_str());
   u8g2.drawStr(OFFSET_WIND_X, OFFSET_WIND_Y, windStr.c_str());
 }
@@ -495,7 +529,8 @@ void setup(void) {
   u8g2.setContrast(brightness);
   u8g2.enableUTF8Print();
 
-  button.setup(PIN_TAP, INPUT_PULLUP, true);
+  button.setup(PIN_TAP, true);
+  pinMode(PIN_TAP, INPUT);
 
   button.attachClick([]() {
     Serial.println("click");
@@ -527,11 +562,10 @@ void loop(void) {
   } else {
     chronos.loop();
 
-    if (wifiEnabled && WiFi.status() == WL_CONNECTED) {
+    if (wifiEnabled && WiFi.status() == WL_CONNECTED && !weatherUpdating) {
       if (millis() - lastWeatherUpdate > weatherInterval || lastWeatherUpdate == 0) {
-        if (syncNTP() && updateOnlineWeather()) {
-          lastWeatherUpdate = millis();
-        }
+        syncNTP();
+        updateOnlineWeather();
       }
     }
     if (chronos.isConnected()) {
@@ -543,4 +577,6 @@ void loop(void) {
     drawMainClock();
     u8g2.sendBuffer();
   }
+
+  delay(100);
 }
