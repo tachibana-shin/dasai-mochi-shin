@@ -26,6 +26,7 @@ const char *ntpServer = "time.google.com";
 const long gmtOffset_sec = 7 * 3600;
 const int daylightOffset_sec = 0;
 
+#define LANG_CODE "vi"
 #define WEATHER_SERVER "http://api.open-meteo.com/v1/forecast?latitude=10.762622&longitude=106.660172&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,is_day&daily=sunrise,sunset&timezone=auto"
 
 String onlineSunrise = "";
@@ -330,6 +331,22 @@ void drawStatusBar() {
 
   // Left: Date
   String dateStr;
+  if (LANG_CODE == "vi") {
+    struct tm timeinfo;
+if (WiFi.status() == WL_CONNECTED && getLocalTime(&timeinfo)) {
+  const char* thangVN[12] = {
+    "Thg 1", "Thg 2", "Thg 3", "Thg 4", "Thg 5", "Thg 6",
+    "Thg 7", "Thg 8", "Thg 9", "Thg 10", "Thg 11", "Thg 12"
+  };
+
+  char buffer[20];
+  snprintf(buffer, sizeof(buffer), "%02d %s", timeinfo.tm_mday, thangVN[timeinfo.tm_mon]);
+  dateStr = String(buffer);
+
+} else {
+  dateStr = chronos.getTime("%d %b"); // fallback
+}
+  } else {
   struct tm timeinfo;
   if (WiFi.status() == WL_CONNECTED && getLocalTime(&timeinfo)) {
     char buffer[20];
@@ -338,6 +355,7 @@ void drawStatusBar() {
   } else {
     dateStr = chronos.getTime("%d %b");
   }
+}
   u8g2.drawStr(OFFSET_DATE_X, OFFSET_DATE_Y, dateStr.c_str());
 
   // Bluetooth Icon
@@ -378,6 +396,11 @@ void drawMainClock() {
     minuteStr = chronos.getTime("%M");
     secStr = chronos.getTime("%S");
     ampmStr = chronos.getAmPmC();
+  }
+
+  if (LANG_CODE == "vi") {
+    if (ampmStr == "AM") ampmStr = "SA";
+    else if (ampmStr == "PM") ampmStr = "CH";
   }
 
   String timeStr = hourStr + ":" + minuteStr;
