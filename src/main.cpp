@@ -12,20 +12,47 @@
 #include <esp_wifi.h>
 #include <time.h>
 #include <vector>
+#include <SD.h>
+#include <SPI.h>
 
 // allow edit
 #define PIN_SDA 20
 #define PIN_SCL 21
 #define PIN_TAP 10
 
+#define SD_CS   4
+#define SD_MOSI 3
+#define SD_CLK  2
+#define SD_MISO 1
 #define WIFI_AP_NAME "Dasai Mochi Shin"
+#define BLUETOOTH_NAME "Mochi Shin"
 
-const unsigned long weatherInterval = 1800000; // 30 mins
 const char *ntpServer = "time.google.com";
 const long gmtOffset_sec = 7 * 3600;
 const int daylightOffset_sec = 0;
 
 #define LANG_CODE "vi" // "vi" or "ja"
+#define WEATHER_SERVER "http://api.open-meteo.com/v1/forecast?latitude=10.762622&longitude=106.660172&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,is_day&daily=sunrise,sunset&timezone=auto"
+
+#define CONFIG_PATH "/config.json"
+
+//////////////////////
+struct WifiEntry {
+  String ssid;
+  String pass;
+};
+struct AppConfig {
+  int brightness = 150;
+  bool wifiEnabled = true;
+  unsigned long weatherInterval = 1800000;
+  unsigned long chronoUpdateInverval = 1800000;
+  int autoOffHour = 23;
+  int autoOnHour = 7;
+  std::vector<WifiEntry> wifi;
+};
+
+AppConfig config;
+
 
 struct LocaleInfo {
   const char* am;
@@ -36,15 +63,32 @@ struct LocaleInfo {
 
 const LocaleInfo locale_vi = {
   "SA", "CH",
-  {"thg 1", "thg 2", "thg 3", "thg 4", "thg 5", "thg 6", "thg 7", "thg 8", "thg 9", "thg 10", "thg 11", "thg 12"},
-  {"CN", "T2", "T3", "T4", "T5", "T6", "T7"},
+  {
+    "thg 1", "thg 2", "thg 3", "thg 4", "thg 5","thg 6",
+    "thg 7", "thg 8", "thg 9", "thg 10", "thg 11", "thg 12"
+  },
+  {
+    "CN", "T2", "T3", "T4", "T5", "T6", "T7"
+  }
+};
+const LocaleInfo locale_en = {
+  "AM", "PM",
+  {
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+  },
+  {
+    "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+  }
 };
 
 const LocaleInfo* getActiveLocale() {
-  return &locale_vi;
-}
+  if (LANG_CODE == "vi") {
+    return &locale_vi;
+  }
 
-#define WEATHER_SERVER "http://api.open-meteo.com/v1/forecast?latitude=10.762622&longitude=106.660172&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,is_day&daily=sunrise,sunset&timezone=auto"
+  return &locale_en;
+}
 
 String onlineSunrise = "--:--";
 String onlineSunset = "--:--";
@@ -54,25 +98,18 @@ volatile bool weatherUpdating = false;
 
 #define OFFSET_DATE_X 2
 #define OFFSET_DATE_Y 10
-
 #define OFFSET_STATUSBAR_ICON_RIGHT_X 100
 #define OFFSET_STATUSBAR_ICON_RIGHT_Y 10
-
 #define OFFSET_TIME_X 2
 #define OFFSET_TIME_Y 45
-
 #define OFFSET_SEC_X 72
 #define OFFSET_SEC_Y 35
-
 #define OFFSET_WEATHER_ICON_X 90
 #define OFFSET_WEATHER_ICON_Y 40
-
 #define OFFSET_WEATHER_TEMP_X 90
 #define OFFSET_WEATHER_TEMP_Y 55
-
 #define OFFSET_HUM_X 110
 #define OFFSET_HUM_Y 33
-
 #define OFFSET_WIND_X 110
 #define OFFSET_WIND_Y 42
 
@@ -85,51 +122,200 @@ bool lastRawState = HIGH;      // Assuming INPUT_PULLUP (HIGH = released)
 bool debouncedState = HIGH;
 const unsigned long debounceDelay = 25;
 const unsigned long multiClickDelay = 500;
-Preferences preferences;
-ChronosESP32 chronos("Mochi Shin");
 
-int brightness = 150;
+Preferences preferences;
+ChronosESP32 chronos(BLUETOOTH_NAME);
+
 int onlineTemp = -999;
 int onlineHumidity = -1;
 float onlineWindSpeed = -1.0;
 int onlineWeatherCode = -1;
 bool onlineIsDay = true;
 unsigned long lastWeatherUpdate = 0;
-bool wifiEnabled = true;
+unsigned long lastChronoUpdate = 0;
 bool isPortalActive = false;
 bool screenOn = true;
 
-struct WifiEntry {
-  String ssid;
-  String pass;
-};
+unsigned long lastScreenAutoCheck = 0;
+const unsigned long screenAutoCheckInterval = 60000;
 
-std::vector<WifiEntry> wifiList;
+SPIClass sdSPI(HSPI);
 
-void saveBrightness() {
-  preferences.begin("settings", false);  
-  preferences.putInt("light", brightness); 
-  preferences.end();
+bool initSD() {
+  sdSPI.begin(SD_CLK, SD_MISO, SD_MOSI, SD_CS);
+  if (!SD.begin(SD_CS, sdSPI)) {
+    Serial.println("SD card initialization failed!");
+    return false;
+  }
+  Serial.println("SD card initialized.");
+  return true;
 }
-void saveWifiList() {
-  JsonDocument doc;
-  JsonArray arr = doc["wifi"].to<JsonArray>();
 
-  for (auto &w : wifiList) {
-    JsonObject obj = arr.add<JsonObject>();
+bool loadConfig() {
+  File configFile;
+  bool useSD = initSD();
+
+  if (useSD && SD.exists(CONFIG_PATH)) {
+    configFile = SD.open(CONFIG_PATH, FILE_READ);
+    Serial.println("Loading config from SD");
+  } else {
+    if (!SPIFFS.begin(false)) {
+      Serial.println("SPIFFS mount failed");
+      return false;
+    }
+    if (SPIFFS.exists(CONFIG_PATH)) {
+      configFile = SPIFFS.open(CONFIG_PATH, FILE_READ);
+      Serial.println("Loading config from SPIFFS");
+    } else {
+      Serial.println("No config file found, using defaults");
+      return false;
+    }
+  }
+
+  if (!configFile) {
+    Serial.println("Failed to open config file");
+    return false;
+  }
+
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, configFile);
+  configFile.close();
+
+  if (error) {
+    Serial.println("Failed to parse config file");
+    return false;
+  }
+
+  config.brightness = doc["brightness"] | 150;
+  config.wifiEnabled = doc["wifiEnabled"] | true;
+  config.weatherInterval = doc["weatherInterval"] | 1800000;
+  config.chronoUpdateInverval = doc["chronoUpdateInverval"] | 1800000;
+  config.autoOffHour = doc["autoOffHour"] | 23;
+  config.autoOnHour = doc["autoOnHour"] | 7;
+
+  config.wifi.clear();
+  JsonArray wifiArray = doc["wifi"].as<JsonArray>();
+  for (JsonObject w : wifiArray) {
+    WifiEntry e;
+    e.ssid = w["ssid"].as<String>();
+    e.pass = w["pass"].as<String>();
+    config.wifi.push_back(e);
+  }
+
+  Serial.println("Config loaded:");
+  Serial.printf("  brightness: %d\n", config.brightness);
+  Serial.printf("  wifiEnabled: %d\n", config.wifiEnabled);
+  Serial.printf("  weatherInterval: %lu\n", config.weatherInterval);
+  Serial.printf("  chronoUpdateInverval: %lu\n", config.chronoUpdateInverval);
+  Serial.printf("  autoOffHour: %d\n", config.autoOffHour);
+  Serial.printf("  autoOnHour: %d\n", config.autoOnHour);
+  Serial.printf("  wifi entries: %d\n", config.wifi.size());
+
+  return true;
+}
+
+bool saveConfig() {
+  JsonDocument doc;
+  doc["brightness"] = config.brightness;
+  doc["wifiEnabled"] = config.wifiEnabled;
+  doc["weatherInterval"] = config.weatherInterval;
+  doc["chronoUpdateInverval"] = config.chronoUpdateInverval;
+  doc["autoOffHour"] = config.autoOffHour;
+  doc["autoOnHour"] = config.autoOnHour;
+
+  JsonArray wifiArray = doc["wifi"].to<JsonArray>();
+  for (auto &w : config.wifi) {
+    JsonObject obj = wifiArray.add<JsonObject>();
     obj["ssid"] = w.ssid;
     obj["pass"] = w.pass;
   }
 
-  if (!SPIFFS.begin(false)) {
-    Serial.println("SPIFFS failed");
-    return;
+  File configFile;
+  bool useSD = initSD();
+
+  if (useSD) {
+    configFile = SD.open(CONFIG_PATH, FILE_WRITE);
+    if (!configFile) {
+      Serial.println("Failed to open config file on SD for writing");
+      // fallback to SPIFFS
+      useSD = false;
+    }
   }
 
-  File f = SPIFFS.open("/wifi_list.json", "w");
-  if (f) {
-    serializeJson(doc, f);
-    f.close();
+  if (!useSD) {
+    if (!SPIFFS.begin(false)) {
+      Serial.println("SPIFFS mount failed");
+      return false;
+    }
+    configFile = SPIFFS.open(CONFIG_PATH, FILE_WRITE);
+  }
+
+  if (!configFile) {
+    Serial.println("Failed to open config file for writing");
+    return false;
+  }
+
+  if (serializeJson(doc, configFile) == 0) {
+    Serial.println("Failed to write config file");
+    configFile.close();
+    return false;
+  }
+
+  configFile.close();
+  Serial.println("Config saved successfully");
+  return true;
+}
+
+void toggleScreen() {
+  screenOn = !screenOn;
+  u8g2.setPowerSave(!screenOn);
+  Serial.println(screenOn ? "Screen ON" : "Screen OFF");
+}
+
+void checkScreenAutoOff() {
+  // Check interval
+  if (millis() - lastScreenAutoCheck < screenAutoCheckInterval) return;
+  lastScreenAutoCheck = millis();
+
+  int onHour = config.autoOnHour;
+  int offHour = config.autoOffHour;
+
+  // If both are -1, feature disabled
+  if (onHour == -1 && offHour == -1) return;
+
+  int currentHour = -1;
+  struct tm timeinfo;
+
+  if (WiFi.status() == WL_CONNECTED && getLocalTime(&timeinfo)) {
+    currentHour = timeinfo.tm_hour;
+  } else {
+    // Assume chronos.getHour() returns 0-23
+    currentHour = chronos.getHour();
+  }
+
+  if (currentHour < 0 || currentHour > 23) return; // time not available
+
+  bool shouldBeOn;
+
+  if (onHour != -1 && offHour != -1) {
+    // Both set: use interval logic (could wrap)
+    if (onHour <= offHour) {
+      shouldBeOn = (currentHour >= onHour && currentHour < offHour);
+    } else {
+      shouldBeOn = (currentHour >= onHour || currentHour < offHour);
+    }
+  } else if (onHour != -1) {
+    // Only onHour set: screen on from onHour onward (onHour to 23)
+    shouldBeOn = (currentHour >= onHour);
+  } else { // only offHour set
+    // Only offHour set: screen on from 0 to offHour-1
+    shouldBeOn = (currentHour < offHour);
+  }
+
+  if (shouldBeOn && !screenOn) {
+    toggleScreen();
+  } else if (!shouldBeOn && screenOn) {
+    toggleScreen();
   }
 }
 
@@ -141,8 +327,8 @@ bool openWiFiManager() {
   u8g2.sendBuffer();
 
   WiFiManager wm;
-  wm.setClass("invert");          
-  wm.setTimeout(180);             
+  wm.setClass("invert");
+  wm.setTimeout(180);
   wm.setConfigPortalTimeout(180);
   WiFi.setTxPower(WIFI_POWER_8_5dBm);
 
@@ -153,7 +339,7 @@ bool openWiFiManager() {
 
   bool ok = wm.autoConnect(WIFI_AP_NAME);
   isPortalActive = false;
-  
+
   if (!ok) {
     Serial.println("[WiFiManager] Failed or timeout");
     return false;
@@ -162,8 +348,8 @@ bool openWiFiManager() {
   WifiEntry e;
   e.ssid = WiFi.SSID();
   e.pass = WiFi.psk();
-  wifiList.push_back(e);
-  saveWifiList();
+  config.wifi.push_back(e);
+  saveConfig();
 
   Serial.println("[WiFiManager] New WiFi Saved");
   return true;
@@ -179,47 +365,15 @@ static bool wifiConnectNew(String ssid, String pass, bool connect) {
   return ret;
 }
 
-void loadWifiList() {
-  if (!SPIFFS.begin(false)) {
-    Serial.println("SPIFFS failed");
-    return;
-  }
-
-  if (!SPIFFS.exists("/wifi_list.json")) {
-    Serial.println("No wifi list");
-    return;
-  }
-
-  File f = SPIFFS.open("/wifi_list.json", "r");
-  JsonDocument doc;
-  deserializeJson(doc, f);
-  f.close();
-
-  wifiList.clear();
-  JsonArray array = doc["wifi"].as<JsonArray>();
-  for (JsonObject w : array) {
-    WifiEntry e;
-    e.ssid = w["ssid"].as<String>();
-    e.pass = w["pass"].as<String>();
-    wifiList.push_back(e);
-  }
-
-  Serial.println("Loaded WiFi list:");
-  for (auto &w : wifiList)
-    Serial.println(" - " + w.ssid);
-}
-
 static void connectWiFi() {
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
   u8g2.drawStr(0, 20, "WiFi...");
   u8g2.sendBuffer();
 
-  Serial.println("[WiFi] Loading WiFi list...");
-  loadWifiList();
+  Serial.println("[WiFi] Attempting connections from config...");
 
-  // 1. Multi-WiFi attempt
-  for (auto &w : wifiList) {
+  for (auto &w : config.wifi) {
     Serial.println("[WiFi] Trying: " + w.ssid);
     if (wifiConnectNew(w.ssid, w.pass, true)) {
       int retry = 0;
@@ -234,8 +388,7 @@ static void connectWiFi() {
     }
   }
 
-  Serial.println("[WiFi] Multi-WiFi FAILED, opening WiFiManager");
-
+  Serial.println("[WiFi] All saved failed, opening WiFiManager");
   if (!openWiFiManager()) {
     u8g2.clearBuffer();
     u8g2.drawStr(0, 20, "WiFi Failed");
@@ -248,31 +401,30 @@ static void connectWiFi() {
   wifiConnectNew(WiFi.SSID(), WiFi.psk(), true);
 }
 
-static void handleClick() {
+void handleClick() {
   Serial.println("Clicked!");
-  brightness += 50;
-  if (brightness > 255)
-    brightness = 255;
-  u8g2.setContrast(brightness);
-  saveBrightness();
+  config.brightness += 50;
+  if (config.brightness > 255) config.brightness = 255;
+  u8g2.setContrast(config.brightness);
+  saveConfig();
 }
 
-static void handleDoubleclick() {
+void handleDoubleclick() {
   Serial.println("Double clicked!");
-  brightness -= 50;
-  if (brightness < 5)
-    brightness = 5;
-  u8g2.setContrast(brightness);
-  saveBrightness();
+  config.brightness -= 50;
+  if (config.brightness < 5) config.brightness = 5;
+  u8g2.setContrast(config.brightness);
+  saveConfig();
 }
 
-static void handleTripleClick() {
+void handleTripleClick() {
   Serial.println("Triple clicked!");
-  wifiEnabled = !wifiEnabled;
-  
+  config.wifiEnabled = !config.wifiEnabled;
+  saveConfig();
+
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
-  if (wifiEnabled) {
+  if (config.wifiEnabled) {
     u8g2.drawStr(0, 20, "WiFi ON");
     u8g2.sendBuffer();
     delay(1000);
@@ -286,16 +438,9 @@ static void handleTripleClick() {
   }
 }
 
-void toggleScreen() {
-  screenOn = !screenOn;
-  u8g2.setPowerSave(!screenOn);
-  Serial.println(screenOn ? "Screen ON" : "Screen OFF");
-}
-
 void checkButton() {
   bool rawState = digitalRead(PIN_TAP);
 
-  // Debouncing
   if (rawState != lastRawState) {
     lastTransitionTime = millis();
   }
@@ -304,11 +449,8 @@ void checkButton() {
   if ((millis() - lastTransitionTime) > debounceDelay) {
     if (rawState != debouncedState) {
       debouncedState = rawState;
-
-      // Transition from LOW (pressed) to HIGH (released)
       if (debouncedState == HIGH) {
         if (!screenOn) {
-          // If screen is OFF, any click wakes it up immediately
           toggleScreen();
           buttonClicks = 0;
         } else {
@@ -319,13 +461,11 @@ void checkButton() {
     }
   }
 
-  // Multi-click detection
   if (buttonClicks > 0 && (millis() - lastReleaseTime > multiClickDelay)) {
     if (buttonClicks == 1) handleClick();
     else if (buttonClicks == 2) handleDoubleclick();
     else if (buttonClicks == 3) handleTripleClick();
     else if (buttonClicks >= 4) toggleScreen();
-    
     buttonClicks = 0;
   }
 }
@@ -364,7 +504,7 @@ void weatherTask(void *pvParameters) {
     Serial.println("[Weather] HTTP failed: " + String(httpCode));
   }
   http.end();
-  
+
   weatherUpdating = false;
   vTaskDelete(NULL); // 終了時にタスクを自動削除
 }
@@ -425,13 +565,8 @@ void drawStatusBar() {
 
   if (WiFi.status() == WL_CONNECTED && getLocalTime(&timeinfo)) {
     char buffer[48];
-    if (strcmp(LANG_CODE, "ja") == 0) {
-      // Format: 3月11日(水)
-      snprintf(buffer, sizeof(buffer), "%s%02d日(%s)", loc->months[timeinfo.tm_mon], timeinfo.tm_mday, loc->days[timeinfo.tm_wday]);
-    } else {
-      // Format: T4, 11 thg 3
-      snprintf(buffer, sizeof(buffer), "%s, %02d%s", loc->days[timeinfo.tm_wday], timeinfo.tm_mday, loc->months[timeinfo.tm_mon]);
-    }
+    snprintf(buffer, sizeof(buffer), "%s, %02d%s", loc->days[timeinfo.tm_wday], timeinfo.tm_mday, loc->months[timeinfo.tm_mon]);
+    
     dateStr = String(buffer);
   } else {
     dateStr = chronos.getTime("%d %b");
@@ -448,8 +583,8 @@ void drawStatusBar() {
   // Wifi Icon
   u8g2.setFont(u8g2_font_open_iconic_www_1x_t);
   u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X + 10, OFFSET_STATUSBAR_ICON_RIGHT_Y, 0x0051);
-  if (WiFi.status() != WL_CONNECTED) {
-    u8g2.drawLine(OFFSET_STATUSBAR_ICON_RIGHT_X + 10 + 1, OFFSET_STATUSBAR_ICON_RIGHT_Y, OFFSET_STATUSBAR_ICON_RIGHT_X + 12 + 7,OFFSET_STATUSBAR_ICON_RIGHT_Y - 7);
+  if (!config.wifiEnabled || WiFi.status() != WL_CONNECTED) {
+    u8g2.drawLine(OFFSET_STATUSBAR_ICON_RIGHT_X + 10 + 1, OFFSET_STATUSBAR_ICON_RIGHT_Y, OFFSET_STATUSBAR_ICON_RIGHT_X + 12 + 7, OFFSET_STATUSBAR_ICON_RIGHT_Y - 7);
   }
 }
 
@@ -506,9 +641,9 @@ void drawMainClock() {
     else if ((weatherCode >= 71 && weatherCode <= 77) || (weatherCode >= 85 && weatherCode <= 86)) iconGlyph = 0x42; // 雪 / 傘
     else if (weatherCode >= 95) iconGlyph = 0x47; // 雷
   }
-  
+
   u8g2.setFont(u8g2_font_open_iconic_weather_2x_t);
-  u8g2.drawGlyph(OFFSET_WEATHER_ICON_X, OFFSET_WEATHER_ICON_Y, iconGlyph); 
+  u8g2.drawGlyph(OFFSET_WEATHER_ICON_X, OFFSET_WEATHER_ICON_Y, iconGlyph);
 
   u8g2.setFont(u8g2_font_ncenB10_tr);
   String tempStr = "??";
@@ -555,6 +690,7 @@ void drawMainClock() {
   u8g2.drawStr(OFFSET_WIND_X, OFFSET_WIND_Y, windStr.c_str());
 }
 
+// ---------- Setup ----------
 void setup(void) {
   WiFi.disconnect(true, true);
   WiFi.mode(WIFI_MODE_APSTA);
@@ -563,46 +699,49 @@ void setup(void) {
 
   wifi_config_t cfg;
   esp_wifi_get_config(WIFI_IF_AP, &cfg);
-  cfg.ap.channel = 1;        
+  cfg.ap.channel = 1;
   cfg.ap.max_connection = 4;
   esp_wifi_set_config(WIFI_IF_AP, &cfg);
 
   Wire.begin(PIN_SDA, PIN_SCL);
 
-  preferences.begin("settings", true);
-  brightness =
-      preferences.getInt("light", 150);
-  preferences.end();
+  loadConfig();
 
   u8g2.begin();
-  u8g2.setContrast(brightness);
+  u8g2.setContrast(config.brightness);
   u8g2.enableUTF8Print();
 
   pinMode(PIN_TAP, INPUT_PULLUP);
 
   chronos.begin();
-  if (wifiEnabled) {
+
+  if (config.wifiEnabled) {
     connectWiFi();
   }
 }
 
 void loop(void) {
   checkButton();
-  
+
   if (isPortalActive) {
     // WiFiManager is blocking
   } else {
     chronos.loop();
 
-    if (wifiEnabled && WiFi.status() == WL_CONNECTED && !weatherUpdating) {
-      if (millis() - lastWeatherUpdate > weatherInterval || lastWeatherUpdate == 0) {
+    if (config.wifiEnabled && WiFi.status() == WL_CONNECTED && !weatherUpdating) {
+      if (millis() - lastWeatherUpdate > config.weatherInterval || lastWeatherUpdate == 0) {
         syncNTP();
         updateOnlineWeather();
       }
     }
-    if (chronos.isConnected()) {
+   else if (chronos.isConnected()) {
+    if (millis() - lastChronoUpdate > config.chronoUpdateInverval || lastChronoUpdate == 0) {
       syncLocalFromChronos();
+      lastChronoUpdate = millis();
     }
+    }
+
+    checkScreenAutoOff();
 
     u8g2.clearBuffer();
     drawStatusBar();
