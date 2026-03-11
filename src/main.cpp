@@ -80,8 +80,8 @@ struct WifiEntry {
 std::vector<WifiEntry> wifiList;
 
 void saveBrightness() {
-  preferences.begin("settings", false);    // Mở không gian "settings"
-  preferences.putInt("light", brightness); // Lưu giá trị với khóa "light"
+  preferences.begin("settings", false);  
+  preferences.putInt("light", brightness); 
   preferences.end();
   Serial.println("Đã lưu độ sáng vào Flash!");
 }
@@ -107,7 +107,6 @@ void saveWifiList() {
   }
 }
 
-// 📌 Show WiFi setup portal nếu Multi-WiFi thất bại
 bool openWiFiManager() {
   isPortalActive = true;
   u8g2.clearBuffer();
@@ -116,9 +115,9 @@ bool openWiFiManager() {
   u8g2.sendBuffer();
 
   WiFiManager wm;
-  wm.setClass("invert");          // giao diện tối, đẹp cho OLED
-  wm.setTimeout(180);             // 3 phút auto exit
-  wm.setConfigPortalTimeout(180); // nếu không ai cấu hình thì thoát
+  wm.setClass("invert");          
+  wm.setTimeout(180);             
+  wm.setConfigPortalTimeout(180);
   WiFi.setTxPower(WIFI_POWER_8_5dBm);
 
   u8g2.setCursor(0, 40);
@@ -134,7 +133,6 @@ bool openWiFiManager() {
     return false;
   }
 
-  // Lưu WiFi mới vào wifi_list.json
   WifiEntry e;
   e.ssid = WiFi.SSID();
   e.pass = WiFi.psk();
@@ -212,7 +210,6 @@ static void connectWiFi() {
 
   Serial.println("[WiFi] Multi-WiFi FAILED, opening WiFiManager");
 
-  // 2. Mở WiFiManager portal
   if (!openWiFiManager()) {
     u8g2.clearBuffer();
     u8g2.drawStr(0, 20, "WiFi Failed");
@@ -221,12 +218,10 @@ static void connectWiFi() {
     return;
   }
 
-  // 3. Kết nối lại bằng dữ liệu mới
   Serial.println("[WiFi] Reconnecting with new credentials...");
   wifiConnectNew(WiFi.SSID(), WiFi.psk(), true);
 }
 
-// Hàm xử lý khi nhấn 1 chạm (Tăng độ sáng)
 static void handleClick() {
   Serial.println("Clicked!");
   brightness += 50;
@@ -236,7 +231,6 @@ static void handleClick() {
   saveBrightness();
 }
 
-// Hàm xử lý khi nhấn 2 chạm (Giảm độ sáng)
 static void handleDoubleclick() {
   Serial.println("Double clicked!");
   brightness -= 50;
@@ -463,24 +457,21 @@ void setup(void) {
 
   wifi_config_t cfg;
   esp_wifi_get_config(WIFI_IF_AP, &cfg);
-  cfg.ap.channel = 1;            // ép kênh để tránh lỗi C3 hay bị đứng
+  cfg.ap.channel = 1;        
   cfg.ap.max_connection = 4;
   esp_wifi_set_config(WIFI_IF_AP, &cfg);
 
-  // Cấu hình chân I2C cho ESP32-C3
   Wire.begin(PIN_SDA, PIN_SCL);
 
-  preferences.begin("settings", true); // Mở ở chế độ chỉ đọc (read-only)
+  preferences.begin("settings", true);
   brightness =
-      preferences.getInt("light", 150); // Mặc định 150 nếu chưa có dữ liệu
+      preferences.getInt("light", 150);
   preferences.end();
 
-  // Khởi tạo màn hình
   u8g2.begin();
   u8g2.setContrast(brightness);
   u8g2.enableUTF8Print();
 
-  // Cấu hình OneButton theo cách "Explicit setup" (khuyên dùng cho ESP32)
   button.setup(PIN_TAP, INPUT_PULLUP, true);
 
   button.attachClick([]() {
