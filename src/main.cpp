@@ -49,6 +49,54 @@ struct AppConfig {
   int autoOffHour = 23;
   int autoOnHour = 7;
   std::vector<WifiEntry> wifi;
+
+ void fromJson(const JsonObject& doc) {
+    brightness = doc["brightness"] | brightness;
+    wifiEnabled = doc["wifiEnabled"] | wifiEnabled;
+    weatherInterval = doc["weatherInterval"] | weatherInterval;
+    chronoUpdateInverval = doc["chronoUpdateInverval"] | chronoUpdateInverval;
+    autoOffHour = doc["autoOffHour"] | autoOffHour;
+    autoOnHour = doc["autoOnHour"] | autoOnHour;
+
+    JsonArray wifiArray = doc["wifi"].as<JsonArray>();
+    for (JsonObject w : wifiArray) {
+      WifiEntry e;
+      e.ssid = w["ssid"].as<String>();
+      e.pass = w["pass"].as<String>();
+      wifi.push_back(e);
+    }
+  }
+
+  void toJson(JsonDocument& doc) const {
+    doc["brightness"] = brightness;
+    doc["wifiEnabled"] = wifiEnabled;
+    doc["weatherInterval"] = weatherInterval;
+    doc["chronoUpdateInverval"] = chronoUpdateInverval;
+    doc["autoOffHour"] = autoOffHour;
+    doc["autoOnHour"] = autoOnHour;
+
+    JsonArray arr = doc["wifi"].to<JsonArray>();
+    for (auto& e : wifi) {
+      JsonObject w = arr.add<JsonObject>();
+      w["ssid"] = e.ssid;
+      w["pass"] = e.pass;
+    }
+  }
+
+  void debugPrint() const {
+    Serial.println("Config loaded:");
+    Serial.printf("  brightness: %d\n", brightness);
+    Serial.printf("  wifiEnabled: %d\n", wifiEnabled);
+    Serial.printf("  weatherInterval: %lu\n", weatherInterval);
+    Serial.printf("  chronoUpdateInverval: %lu\n", chronoUpdateInverval);
+    Serial.printf("  autoOffHour: %d\n", autoOffHour);
+    Serial.printf("  autoOnHour: %d\n", autoOnHour);
+    Serial.printf("  wifi entries: %d\n", wifi.size());
+
+    for (auto& e : wifi) {
+      Serial.printf("   - ssid: %s, pass: %s\n", e.ssid.c_str(), e.pass.c_str());
+    }
+  }
 };
 
 AppConfig config;
@@ -186,42 +234,15 @@ bool loadConfig() {
     return false;
   }
 
-  config.brightness = doc["brightness"] | 150;
-  config.wifiEnabled = doc["wifiEnabled"] | true;
-  config.weatherInterval = doc["weatherInterval"] | 1800000;
-  config.chronoUpdateInverval = doc["chronoUpdateInverval"] | 1800000;
-  config.autoOffHour = doc["autoOffHour"] | 23;
-  config.autoOnHour = doc["autoOnHour"] | 7;
-
-  config.wifi.clear();
-  JsonArray wifiArray = doc["wifi"].as<JsonArray>();
-  for (JsonObject w : wifiArray) {
-    WifiEntry e;
-    e.ssid = w["ssid"].as<String>();
-    e.pass = w["pass"].as<String>();
-    config.wifi.push_back(e);
-  }
-
-  Serial.println("Config loaded:");
-  Serial.printf("  brightness: %d\n", config.brightness);
-  Serial.printf("  wifiEnabled: %d\n", config.wifiEnabled);
-  Serial.printf("  weatherInterval: %lu\n", config.weatherInterval);
-  Serial.printf("  chronoUpdateInverval: %lu\n", config.chronoUpdateInverval);
-  Serial.printf("  autoOffHour: %d\n", config.autoOffHour);
-  Serial.printf("  autoOnHour: %d\n", config.autoOnHour);
-  Serial.printf("  wifi entries: %d\n", config.wifi.size());
+  config.fromJson(doc.as<JsonObject>());
+  config.debugPrint();
 
   return true;
 }
 
 bool saveConfig() {
   JsonDocument doc;
-  doc["brightness"] = config.brightness;
-  doc["wifiEnabled"] = config.wifiEnabled;
-  doc["weatherInterval"] = config.weatherInterval;
-  doc["chronoUpdateInverval"] = config.chronoUpdateInverval;
-  doc["autoOffHour"] = config.autoOffHour;
-  doc["autoOnHour"] = config.autoOnHour;
+  config.toJson(doc);
 
   JsonArray wifiArray = doc["wifi"].to<JsonArray>();
   for (auto &w : config.wifi) {
