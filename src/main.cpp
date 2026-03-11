@@ -3,7 +3,6 @@
 #include <ChronosESP32.h>
 #include <FS.h>
 #include <HTTPClient.h>
-#include <OneButton.h>
 #include <Preferences.h>
 #include <SPIFFS.h>
 #include <U8g2lib.h>
@@ -78,7 +77,14 @@ volatile bool weatherUpdating = false;
 #define OFFSET_WIND_Y 42
 
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/U8X8_PIN_NONE);
-OneButton button;
+// Custom Button Handling
+unsigned long lastTransitionTime = 0;
+unsigned long lastReleaseTime = 0;
+int buttonClicks = 0;
+bool lastRawState = HIGH;      // Assuming INPUT_PULLUP (HIGH = released)
+bool debouncedState = HIGH;
+const unsigned long debounceDelay = 25;
+const unsigned long multiClickDelay = 500;
 Preferences preferences;
 ChronosESP32 chronos("Mochi Shin");
 
@@ -91,6 +97,7 @@ bool onlineIsDay = true;
 unsigned long lastWeatherUpdate = 0;
 bool wifiEnabled = true;
 bool isPortalActive = false;
+bool screenOn = true;
 
 struct WifiEntry {
   String ssid;
@@ -279,7 +286,49 @@ static void handleTripleClick() {
   }
 }
 
-// saveWifiList moved up
+void toggleScreen() {
+  screenOn = !screenOn;
+  u8g2.setPowerSave(!screenOn);
+  Serial.println(screenOn ? "Screen ON" : "Screen OFF");
+}
+
+void checkButton() {
+  bool rawState = digitalRead(PIN_TAP);
+
+  // Debouncing
+  if (rawState != lastRawState) {
+    lastTransitionTime = millis();
+  }
+  lastRawState = rawState;
+
+  if ((millis() - lastTransitionTime) > debounceDelay) {
+    if (rawState != debouncedState) {
+      debouncedState = rawState;
+
+      // Transition from LOW (pressed) to HIGH (released)
+      if (debouncedState == HIGH) {
+        if (!screenOn) {
+          // If screen is OFF, any click wakes it up immediately
+          toggleScreen();
+          buttonClicks = 0;
+        } else {
+          buttonClicks++;
+          lastReleaseTime = millis();
+        }
+      }
+    }
+  }
+
+  // Multi-click detection
+  if (buttonClicks > 0 && (millis() - lastReleaseTime > multiClickDelay)) {
+    if (buttonClicks == 1) handleClick();
+    else if (buttonClicks == 2) handleDoubleclick();
+    else if (buttonClicks == 3) handleTripleClick();
+    else if (buttonClicks >= 4) toggleScreen();
+    
+    buttonClicks = 0;
+  }
+}
 
 void weatherTask(void *pvParameters) {
   weatherUpdating = true;
@@ -529,24 +578,7 @@ void setup(void) {
   u8g2.setContrast(brightness);
   u8g2.enableUTF8Print();
 
-  button.setup(PIN_TAP, true);
-  pinMode(PIN_TAP, INPUT);
-
-  button.attachClick([]() {
-    Serial.println("click");
-    handleClick();
-  });
-  button.attachDoubleClick([]() {
-    Serial.println("double click");
-    handleDoubleclick();
-  });
-  button.attachMultiClick([](void *s) {
-    int clicks = button.getNumberClicks();
-    Serial.println("multiple click" + String(clicks));
-    if (clicks == 3) {
-      handleTripleClick();
-    }
-  }, NULL);
+  pinMode(PIN_TAP, INPUT_PULLUP);
 
   chronos.begin();
   if (wifiEnabled) {
@@ -555,7 +587,7 @@ void setup(void) {
 }
 
 void loop(void) {
-  button.tick();
+  checkButton();
   
   if (isPortalActive) {
     // WiFiManager is blocking
@@ -578,5 +610,5 @@ void loop(void) {
     u8g2.sendBuffer();
   }
 
-  delay(100);
+  delay(10);
 }
