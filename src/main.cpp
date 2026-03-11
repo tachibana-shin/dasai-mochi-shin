@@ -4,6 +4,8 @@
 #include <FS.h>
 #include <HTTPClient.h>
 #include <Preferences.h>
+#include <SD.h>
+#include <SPI.h>
 #include <SPIFFS.h>
 #include <U8g2lib.h>
 #include <WiFi.h>
@@ -11,9 +13,8 @@
 #include <Wire.h>
 #include <esp_wifi.h>
 #include <time.h>
+
 #include <vector>
-#include <SD.h>
-#include <SPI.h>
 
 //////////////////////
 struct WifiEntry {
@@ -99,12 +100,12 @@ struct AppConfig {
       JsonArray wifiArray = doc["wifi"].as<JsonArray>();
 
       for (JsonObject w : wifiArray) {
-          WifiEntry e;
-          e.ssid = w["ssid"] | "";
-          e.pass = w["pass"] | "";
-          wifi.push_back(e);
+        WifiEntry e;
+        e.ssid = w["ssid"] | "";
+        e.pass = w["pass"] | "";
+        wifi.push_back(e);
       }
-  }
+    }
   }
 
   // ----------------------------------------------------------
@@ -172,19 +173,18 @@ struct AppConfig {
 
     Serial.printf("  Screen SDA: %d, SCL: %d\n", pinScreenSDA, pinScreenSCL);
     Serial.printf("  Tap sensor: %d\n", pinSensorTap);
-    Serial.printf("  SD pins: CS=%d MOSI=%d CLK=%d MISO=%d\n",
-                  pinSdCS, pinSdMOSI, pinSdCLK, pinSdMISO);
+    Serial.printf("  SD pins: CS=%d MOSI=%d CLK=%d MISO=%d\n", pinSdCS,
+                  pinSdMOSI, pinSdCLK, pinSdMISO);
 
     Serial.printf("  wifi entries: %d\n", wifi.size());
     for (auto& e : wifi) {
-      Serial.printf("    - ssid: %s, pass: %s\n",
-                    e.ssid.c_str(), e.pass.c_str());
+      Serial.printf("    - ssid: %s, pass: %s\n", e.ssid.c_str(),
+                    e.pass.c_str());
     }
   }
 };
 
 AppConfig config;
-
 
 struct LocaleInfo {
   const char* am;
@@ -194,25 +194,17 @@ struct LocaleInfo {
 };
 
 const LocaleInfo locale_vi = {
-  "SA", "CH",
-  {
-    "thg 1", "thg 2", "thg 3", "thg 4", "thg 5","thg 6",
-    "thg 7", "thg 8", "thg 9", "thg 10", "thg 11", "thg 12"
-  },
-  {
-    "CN", "T2", "T3", "T4", "T5", "T6", "T7"
-  }
-};
+    "SA",
+    "CH",
+    {"thg 1", "thg 2", "thg 3", "thg 4", "thg 5", "thg 6", "thg 7", "thg 8",
+     "thg 9", "thg 10", "thg 11", "thg 12"},
+    {"CN", "T2", "T3", "T4", "T5", "T6", "T7"}};
 const LocaleInfo locale_en = {
-  "AM", "PM",
-  {
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-  },
-  {
-    "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
-  }
-};
+    "AM",
+    "PM",
+    {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
+     "Nov", "Dec"},
+    {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}};
 
 const LocaleInfo* getActiveLocale() {
   if (config.langCode == "vi") {
@@ -250,7 +242,7 @@ U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/U8X8_PIN_NONE);
 unsigned long lastTransitionTime = 0;
 unsigned long lastReleaseTime = 0;
 int buttonClicks = 0;
-bool lastRawState = HIGH;      // Assuming INPUT_PULLUP (HIGH = released)
+bool lastRawState = HIGH;  // Assuming INPUT_PULLUP (HIGH = released)
 bool debouncedState = HIGH;
 const unsigned long debounceDelay = 25;
 const unsigned long multiClickDelay = 500;
@@ -274,7 +266,8 @@ const unsigned long screenAutoCheckInterval = 60000;
 SPIClass sdSPI(HSPI);
 
 bool initSD() {
-  sdSPI.begin(config.pinSdCLK, config.pinSdMISO, config.pinSdMOSI, config.pinSdCS);
+  sdSPI.begin(config.pinSdCLK, config.pinSdMISO, config.pinSdMOSI,
+              config.pinSdCS);
   if (!SD.begin(config.pinSdCS, sdSPI)) {
     Serial.println("SD card initialization failed!");
     return false;
@@ -329,7 +322,7 @@ bool saveConfig() {
   config.toJson(doc);
 
   JsonArray wifiArray = doc["wifi"].to<JsonArray>();
-  for (auto &w : config.wifi) {
+  for (auto& w : config.wifi) {
     JsonObject obj = wifiArray.add<JsonObject>();
     obj["ssid"] = w.ssid;
     obj["pass"] = w.pass;
@@ -398,7 +391,7 @@ void checkScreenAutoOff() {
     currentHour = chronos.getHour();
   }
 
-  if (currentHour < 0 || currentHour > 23) return; // time not available
+  if (currentHour < 0 || currentHour > 23) return;  // time not available
 
   bool shouldBeOn;
 
@@ -412,7 +405,7 @@ void checkScreenAutoOff() {
   } else if (onHour != -1) {
     // Only onHour set: screen on from onHour onward (onHour to 23)
     shouldBeOn = (currentHour >= onHour);
-  } else { // only offHour set
+  } else {  // only offHour set
     // Only offHour set: screen on from 0 to offHour-1
     shouldBeOn = (currentHour < offHour);
   }
@@ -478,7 +471,7 @@ static void connectWiFi() {
 
   Serial.println("[WiFi] Attempting connections from config...");
 
-  for (auto &w : config.wifi) {
+  for (auto& w : config.wifi) {
     Serial.println("[WiFi] Trying: " + w.ssid);
     if (wifiConnectNew(w.ssid, w.pass, true)) {
       int retry = 0;
@@ -567,15 +560,19 @@ void checkButton() {
   }
 
   if (buttonClicks > 0 && (millis() - lastReleaseTime > multiClickDelay)) {
-    if (buttonClicks == 1) handleClick();
-    else if (buttonClicks == 2) handleDoubleclick();
-    else if (buttonClicks == 3) handleTripleClick();
-    else if (buttonClicks >= 4) toggleScreen();
+    if (buttonClicks == 1)
+      handleClick();
+    else if (buttonClicks == 2)
+      handleDoubleclick();
+    else if (buttonClicks == 3)
+      handleTripleClick();
+    else if (buttonClicks >= 4)
+      toggleScreen();
     buttonClicks = 0;
   }
 }
 
-void weatherTask(void *pvParameters) {
+void weatherTask(void* pvParameters) {
   weatherUpdating = true;
   Serial.println("[Weather] Background update started...");
 
@@ -611,22 +608,20 @@ void weatherTask(void *pvParameters) {
   http.end();
 
   weatherUpdating = false;
-  vTaskDelete(NULL); // 終了時にタスクを自動削除
+  vTaskDelete(NULL);  // 終了時にタスクを自動削除
 }
 
 bool updateOnlineWeather() {
-  if (weatherUpdating || WiFi.status() != WL_CONNECTED)
-    return false;
+  if (weatherUpdating || WiFi.status() != WL_CONNECTED) return false;
 
   // コア1でタスクを実行（コア0は通常WiFi用）
-  xTaskCreatePinnedToCore(
-      weatherTask,      // 実行関数
-      "weatherTask",    // タスク名
-      8192,             // スタックサイズ
-      NULL,             // パラメータ
-      1,                // 優先度
-      NULL,             // タスクハンドル
-      1                 // コア1で実行
+  xTaskCreatePinnedToCore(weatherTask,    // 実行関数
+                          "weatherTask",  // タスク名
+                          8192,           // スタックサイズ
+                          NULL,           // パラメータ
+                          1,              // 優先度
+                          NULL,           // タスクハンドル
+                          1               // コア1で実行
   );
 
   return true;
@@ -634,7 +629,8 @@ bool updateOnlineWeather() {
 
 bool syncNTP() {
   if (WiFi.status() == WL_CONNECTED) {
-    configTime(config.gmtOffset_sec, config.daylightOffset_sec, config.ntpServer.c_str());
+    configTime(config.gmtOffset_sec, config.daylightOffset_sec,
+               config.ntpServer.c_str());
     Serial.println("NTP sync started");
     return true;
   }
@@ -645,11 +641,11 @@ static void syncLocalFromChronos() {
   memset(&t, 0, sizeof(t));
 
   t.tm_year = chronos.getYear() - 1900;
-  t.tm_mon  = chronos.getMonth() - 1;
+  t.tm_mon = chronos.getMonth() - 1;
   t.tm_mday = chronos.getDay();
   t.tm_hour = chronos.getHour();
-  t.tm_min  = chronos.getMinute();
-  t.tm_sec  = chronos.getSecond();
+  t.tm_min = chronos.getMinute();
+  t.tm_sec = chronos.getSecond();
 
   time_t now = mktime(&t);
 
@@ -661,7 +657,8 @@ static void syncLocalFromChronos() {
 }
 
 void drawStatusBar() {
-  u8g2.setFont(u8g2_font_6x10_tf); // Switch to unifont for multi-language support
+  u8g2.setFont(
+      u8g2_font_6x10_tf);  // Switch to unifont for multi-language support
 
   // Left: Date
   String dateStr;
@@ -670,8 +667,9 @@ void drawStatusBar() {
 
   if (WiFi.status() == WL_CONNECTED && getLocalTime(&timeinfo)) {
     char buffer[48];
-    snprintf(buffer, sizeof(buffer), "%s, %02d%s", loc->days[timeinfo.tm_wday], timeinfo.tm_mday, loc->months[timeinfo.tm_mon]);
-    
+    snprintf(buffer, sizeof(buffer), "%s, %02d%s", loc->days[timeinfo.tm_wday],
+             timeinfo.tm_mday, loc->months[timeinfo.tm_mon]);
+
     dateStr = String(buffer);
   } else {
     dateStr = chronos.getTime("%d %b");
@@ -680,16 +678,23 @@ void drawStatusBar() {
 
   // Bluetooth Icon
   u8g2.setFont(u8g2_font_open_iconic_embedded_1x_t);
-  u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X, OFFSET_STATUSBAR_ICON_RIGHT_Y, 74);
+  u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X, OFFSET_STATUSBAR_ICON_RIGHT_Y,
+                 74);
   if (!config.bluetoothEnabled || !chronos.isConnected()) {
-    u8g2.drawLine(OFFSET_STATUSBAR_ICON_RIGHT_X, OFFSET_STATUSBAR_ICON_RIGHT_Y, OFFSET_STATUSBAR_ICON_RIGHT_X + 7, OFFSET_STATUSBAR_ICON_RIGHT_Y - 7);
+    u8g2.drawLine(OFFSET_STATUSBAR_ICON_RIGHT_X, OFFSET_STATUSBAR_ICON_RIGHT_Y,
+                  OFFSET_STATUSBAR_ICON_RIGHT_X + 7,
+                  OFFSET_STATUSBAR_ICON_RIGHT_Y - 7);
   }
 
   // Wifi Icon
   u8g2.setFont(u8g2_font_open_iconic_www_1x_t);
-  u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X + 10, OFFSET_STATUSBAR_ICON_RIGHT_Y, 0x0051);
+  u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X + 10,
+                 OFFSET_STATUSBAR_ICON_RIGHT_Y, 0x0051);
   if (!config.wifiEnabled || WiFi.status() != WL_CONNECTED) {
-    u8g2.drawLine(OFFSET_STATUSBAR_ICON_RIGHT_X + 10 + 1, OFFSET_STATUSBAR_ICON_RIGHT_Y, OFFSET_STATUSBAR_ICON_RIGHT_X + 12 + 7, OFFSET_STATUSBAR_ICON_RIGHT_Y - 7);
+    u8g2.drawLine(OFFSET_STATUSBAR_ICON_RIGHT_X + 10 + 1,
+                  OFFSET_STATUSBAR_ICON_RIGHT_Y,
+                  OFFSET_STATUSBAR_ICON_RIGHT_X + 12 + 7,
+                  OFFSET_STATUSBAR_ICON_RIGHT_Y - 7);
   }
 }
 
@@ -704,11 +709,11 @@ void drawMainClock() {
     timeValid = true;
     char h[3], m[3], s[3], p[3];
     if (config.is24Hour) {
-      strftime(h, sizeof(h), "%H", &timeinfo);   // 00–23
-      ampmStr = "";                           
+      strftime(h, sizeof(h), "%H", &timeinfo);  // 00–23
+      ampmStr = "";
     } else {
-      strftime(h, sizeof(h), "%I", &timeinfo);   // 01–12
-      strftime(p, sizeof(p), "%p", &timeinfo);   // AM / PM
+      strftime(h, sizeof(h), "%I", &timeinfo);  // 01–12
+      strftime(p, sizeof(p), "%p", &timeinfo);  // AM / PM
       ampmStr = String(p);
     }
 
@@ -722,32 +727,44 @@ void drawMainClock() {
   }
 
   const LocaleInfo* loc = getActiveLocale();
-  if (ampmStr == "AM") ampmStr = loc->am;
-  else if (ampmStr == "PM") ampmStr = loc->pm;
+  if (ampmStr == "AM")
+    ampmStr = loc->am;
+  else if (ampmStr == "PM")
+    ampmStr = loc->pm;
 
   String timeStr = hourStr + ":" + minuteStr;
-  u8g2.drawStr(OFFSET_TIME_X, OFFSET_TIME_Y, timeStr.c_str()); // Corrected from OFFSET_Y_TIME
+  u8g2.drawStr(OFFSET_TIME_X, OFFSET_TIME_Y,
+               timeStr.c_str());  // Corrected from OFFSET_Y_TIME
 
   u8g2.setFont(u8g2_font_6x10_tf);
-  u8g2.drawStr(OFFSET_SEC_X, OFFSET_SEC_Y, secStr.c_str()); // Seconds above AM/PM
+  u8g2.drawStr(OFFSET_SEC_X, OFFSET_SEC_Y,
+               secStr.c_str());  // Seconds above AM/PM
   u8g2.drawStr(OFFSET_SEC_X, OFFSET_SEC_Y + 10, ampmStr.c_str());
 
   // Right: Weather Icon
-  uint8_t iconGlyph = 0x41; // デフォルト：曇り（不明）
+  uint8_t iconGlyph = 0x41;  // デフォルト：曇り（不明）
   int weatherCode = -1;
   bool isDay = true;
 
   if (WiFi.status() == WL_CONNECTED && onlineWeatherCode != -1) {
     weatherCode = onlineWeatherCode;
     isDay = onlineIsDay;
-    
+
     // WMOコードをアイコンにマッピング
-    if (weatherCode == 0) iconGlyph = isDay ? 0x45 : 0x44; // 太陽 / 月
-    else if (weatherCode == 1 || weatherCode == 2) iconGlyph = 0x46; // 雲 + 太陽
-    else if (weatherCode == 3 || weatherCode == 45 || weatherCode == 48) iconGlyph = 0x41; // 雲
-    else if ((weatherCode >= 51 && weatherCode <= 65) || (weatherCode >= 80 && weatherCode <= 82)) iconGlyph = 0x43; // 雨
-    else if ((weatherCode >= 71 && weatherCode <= 77) || (weatherCode >= 85 && weatherCode <= 86)) iconGlyph = 0x42; // 雪 / 傘
-    else if (weatherCode >= 95) iconGlyph = 0x47; // 雷
+    if (weatherCode == 0)
+      iconGlyph = isDay ? 0x45 : 0x44;  // 太陽 / 月
+    else if (weatherCode == 1 || weatherCode == 2)
+      iconGlyph = 0x46;  // 雲 + 太陽
+    else if (weatherCode == 3 || weatherCode == 45 || weatherCode == 48)
+      iconGlyph = 0x41;  // 雲
+    else if ((weatherCode >= 51 && weatherCode <= 65) ||
+             (weatherCode >= 80 && weatherCode <= 82))
+      iconGlyph = 0x43;  // 雨
+    else if ((weatherCode >= 71 && weatherCode <= 77) ||
+             (weatherCode >= 85 && weatherCode <= 86))
+      iconGlyph = 0x42;  // 雪 / 傘
+    else if (weatherCode >= 95)
+      iconGlyph = 0x47;  // 雷
   }
 
   u8g2.setFont(u8g2_font_open_iconic_weather_2x_t);
@@ -773,12 +790,12 @@ void drawMainClock() {
   // Sunrise / Sunset at the bottom
   if (onlineSunrise != "" && onlineSunset != "") {
     u8g2.setFont(u8g2_font_open_iconic_weather_1x_t);
-    u8g2.drawGlyph(2, 63, 0x45); // 日の出：太陽アイコン
+    u8g2.drawGlyph(2, 63, 0x45);  // 日の出：太陽アイコン
     u8g2.setFont(u8g2_font_5x7_tf);
     u8g2.drawStr(12, 63, onlineSunrise.c_str());
 
     u8g2.setFont(u8g2_font_open_iconic_weather_1x_t);
-    u8g2.drawGlyph(65, 63, 0x44); // 日の入り：月アイコン
+    u8g2.drawGlyph(65, 63, 0x44);  // 日の入り：月アイコン
     u8g2.setFont(u8g2_font_5x7_tf);
     u8g2.drawStr(75, 63, onlineSunset.c_str());
   }
@@ -787,12 +804,16 @@ void drawMainClock() {
   u8g2.setFont(u8g2_font_5x7_tf);
   String humStr = "H";
   String windStr = "W";
-  
-  if (humidity != -1) humStr += String(humidity) + "%";
-  else humStr += "??";
-  
-  if (wind != -1) windStr += String(wind, 1) + "m/s";
-  else windStr += "??";
+
+  if (humidity != -1)
+    humStr += String(humidity) + "%";
+  else
+    humStr += "??";
+
+  if (wind != -1)
+    windStr += String(wind, 1) + "m/s";
+  else
+    windStr += "??";
 
   u8g2.drawStr(OFFSET_HUM_X, OFFSET_HUM_Y, humStr.c_str());
   u8g2.drawStr(OFFSET_WIND_X, OFFSET_WIND_Y, windStr.c_str());
@@ -825,21 +846,22 @@ void setup(void) {
   chronos.setConnectionCallback([](bool enabled) {
     if (enabled) syncLocalFromChronos();
   });
-  chronos.setNotificationCallback([] (Notification notify) {
+  chronos.setNotificationCallback([](Notification notify) {
     // notification
   });
-  chronos.setConfigurationCallback([](Config _, uint32_t timestamp, uint32_t timezone) {
-syncLocalFromChronos();
+  chronos.setConfigurationCallback(
+      [](Config _, uint32_t timestamp, uint32_t timezone) {
+        syncLocalFromChronos();
 
-  bool is24Hour =chronos.is24Hour();
-  if (is24Hour != config.is24Hour) {
-    config.is24Hour = is24Hour;
-    saveConfig();
-  }
-  });
+        bool is24Hour = chronos.is24Hour();
+        if (is24Hour != config.is24Hour) {
+          config.is24Hour = is24Hour;
+          saveConfig();
+        }
+      });
 
   if (config.bluetoothEnabled) {
-  chronos.begin();
+    chronos.begin();
   }
   if (config.wifiEnabled) {
     connectWiFi();
@@ -848,16 +870,17 @@ syncLocalFromChronos();
 
 void loop(void) {
   checkButton();
-    if (config.bluetoothEnabled) {
+  if (config.bluetoothEnabled) {
     chronos.loop();
-    }
+  }
 
   if (isPortalActive) {
     // WiFiManager is blocking
   } else {
-
-    if (config.wifiEnabled && WiFi.status() == WL_CONNECTED && !weatherUpdating) {
-      if (millis() - lastWeatherUpdate > config.weatherInterval || lastWeatherUpdate == 0) {
+    if (config.wifiEnabled && WiFi.status() == WL_CONNECTED &&
+        !weatherUpdating) {
+      if (millis() - lastWeatherUpdate > config.weatherInterval ||
+          lastWeatherUpdate == 0) {
         syncNTP();
         updateOnlineWeather();
       }
