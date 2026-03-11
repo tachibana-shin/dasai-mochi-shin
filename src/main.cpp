@@ -15,27 +15,6 @@
 #include <SD.h>
 #include <SPI.h>
 
-// allow edit
-#define PIN_SDA 20
-#define PIN_SCL 21
-#define PIN_TAP 10
-
-#define SD_CS   4
-#define SD_MOSI 3
-#define SD_CLK  2
-#define SD_MISO 1
-#define WIFI_AP_NAME "Dasai Mochi Shin"
-#define BLUETOOTH_NAME "Mochi Shin"
-
-const char *ntpServer = "time.google.com";
-const long gmtOffset_sec = 7 * 3600;
-const int daylightOffset_sec = 0;
-
-#define LANG_CODE "vi" // "vi" or "ja"
-#define WEATHER_SERVER "http://api.open-meteo.com/v1/forecast?latitude=10.762622&longitude=106.660172&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,is_day&daily=sunrise,sunset&timezone=auto"
-
-#define CONFIG_PATH "/config.json"
-
 //////////////////////
 struct WifiEntry {
   String ssid;
@@ -44,36 +23,122 @@ struct WifiEntry {
 struct AppConfig {
   int brightness = 150;
   bool wifiEnabled = true;
+  bool bluetoothEnabled = true;
   unsigned long weatherInterval = 1800000;
-  unsigned long chronoUpdateInverval = 1800000;
   int autoOffHour = 23;
   int autoOnHour = 7;
+
   std::vector<WifiEntry> wifi;
 
- void fromJson(const JsonObject& doc) {
+  // pin settings
+  int pinScreenSDA = 20;
+  int pinScreenSCL = 21;
+  int pinSensorTap = 10;
+
+  int pinSdCS = 4;
+  int pinSdMOSI = 3;
+  int pinSdCLK = 2;
+  int pinSdMISO = 1;
+
+  String wifiAPName = "Dasai Mochi Shin";
+  String bluetoothName = "Mochi Shin";
+  String ntpServer = "time.google.com";
+
+  long gmtOffset_sec = 7 * 3600;
+  int daylightOffset_sec = 0;
+
+  bool is24Hour = false;
+
+  String langCode = "vi";
+
+  String weatherServer =
+      "http://api.open-meteo.com/v1/forecast?"
+      "latitude=10.762622&longitude=106.660172&"
+      "current=temperature_2m,relative_humidity_2m,wind_speed_10m,"
+      "weather_code,is_day&daily=sunrise,sunset&timezone=auto";
+
+  String configPath = "/config.json";
+
+  // ----------------------------------------------------------
+  // Deserialize
+  // ----------------------------------------------------------
+  void fromJson(const JsonObject& doc) {
     brightness = doc["brightness"] | brightness;
     wifiEnabled = doc["wifiEnabled"] | wifiEnabled;
+    bluetoothEnabled = doc["bluetoothEnabled"] | bluetoothEnabled;
     weatherInterval = doc["weatherInterval"] | weatherInterval;
-    chronoUpdateInverval = doc["chronoUpdateInverval"] | chronoUpdateInverval;
     autoOffHour = doc["autoOffHour"] | autoOffHour;
     autoOnHour = doc["autoOnHour"] | autoOnHour;
 
-    JsonArray wifiArray = doc["wifi"].as<JsonArray>();
-    for (JsonObject w : wifiArray) {
-      WifiEntry e;
-      e.ssid = w["ssid"].as<String>();
-      e.pass = w["pass"].as<String>();
-      wifi.push_back(e);
-    }
+    gmtOffset_sec = doc["gmtOffset_sec"] | gmtOffset_sec;
+    daylightOffset_sec = doc["daylightOffset_sec"] | daylightOffset_sec;
+
+    is24Hour = doc["is24Hour"] | is24Hour;
+    langCode = doc["langCode"] | langCode;
+
+    wifiAPName = doc["wifiAPName"] | wifiAPName;
+    bluetoothName = doc["bluetoothName"] | bluetoothName;
+    ntpServer = doc["ntpServer"] | ntpServer;
+
+    weatherServer = doc["weatherServer"] | weatherServer;
+    configPath = doc["configPath"] | configPath;
+
+    pinScreenSDA = doc["pinScreenSDA"] | pinScreenSDA;
+    pinScreenSCL = doc["pinScreenSCL"] | pinScreenSCL;
+    pinSensorTap = doc["pinSensorTap"] | pinSensorTap;
+
+    pinSdCS = doc["pinSdCS"] | pinSdCS;
+    pinSdMOSI = doc["pinSdMOSI"] | pinSdMOSI;
+    pinSdCLK = doc["pinSdCLK"] | pinSdCLK;
+    pinSdMISO = doc["pinSdMISO"] | pinSdMISO;
+
+    // wifi entries
+    wifi.clear();
+
+    if (doc["wifi"].is<JsonArray>()) {
+      JsonArray wifiArray = doc["wifi"].as<JsonArray>();
+
+      for (JsonObject w : wifiArray) {
+          WifiEntry e;
+          e.ssid = w["ssid"] | "";
+          e.pass = w["pass"] | "";
+          wifi.push_back(e);
+      }
+  }
   }
 
+  // ----------------------------------------------------------
+  // Serialize
+  // ----------------------------------------------------------
   void toJson(JsonDocument& doc) const {
     doc["brightness"] = brightness;
     doc["wifiEnabled"] = wifiEnabled;
+    doc["bluetoothEnabled"] = bluetoothEnabled;
     doc["weatherInterval"] = weatherInterval;
-    doc["chronoUpdateInverval"] = chronoUpdateInverval;
     doc["autoOffHour"] = autoOffHour;
     doc["autoOnHour"] = autoOnHour;
+
+    doc["gmtOffset_sec"] = gmtOffset_sec;
+    doc["daylightOffset_sec"] = daylightOffset_sec;
+
+    doc["is24Hour"] = is24Hour;
+    doc["langCode"] = langCode;
+
+    doc["wifiAPName"] = wifiAPName;
+    doc["bluetoothName"] = bluetoothName;
+    doc["ntpServer"] = ntpServer;
+
+    doc["weatherServer"] = weatherServer;
+    doc["configPath"] = configPath;
+
+    doc["pinScreenSDA"] = pinScreenSDA;
+    doc["pinScreenSCL"] = pinScreenSCL;
+    doc["pinSensorTap"] = pinSensorTap;
+
+    doc["pinSdCS"] = pinSdCS;
+    doc["pinSdMOSI"] = pinSdMOSI;
+    doc["pinSdCLK"] = pinSdCLK;
+    doc["pinSdMISO"] = pinSdMISO;
 
     JsonArray arr = doc["wifi"].to<JsonArray>();
     for (auto& e : wifi) {
@@ -83,18 +148,37 @@ struct AppConfig {
     }
   }
 
+  // ----------------------------------------------------------
+  // Debug log
+  // ----------------------------------------------------------
   void debugPrint() const {
     Serial.println("Config loaded:");
     Serial.printf("  brightness: %d\n", brightness);
     Serial.printf("  wifiEnabled: %d\n", wifiEnabled);
+    Serial.printf("  bluetoothEnabled: %d\n", bluetoothEnabled);
     Serial.printf("  weatherInterval: %lu\n", weatherInterval);
-    Serial.printf("  chronoUpdateInverval: %lu\n", chronoUpdateInverval);
     Serial.printf("  autoOffHour: %d\n", autoOffHour);
     Serial.printf("  autoOnHour: %d\n", autoOnHour);
-    Serial.printf("  wifi entries: %d\n", wifi.size());
 
+    Serial.printf("  gmtOffset_sec: %ld\n", gmtOffset_sec);
+    Serial.printf("  daylightOffset_sec: %d\n", daylightOffset_sec);
+    Serial.printf("  is24Hour: %d\n", is24Hour);
+    Serial.printf("  langCode: %s\n", langCode.c_str());
+
+    Serial.printf("  wifiAPName: %s\n", wifiAPName.c_str());
+    Serial.printf("  bluetoothName: %s\n", bluetoothName.c_str());
+    Serial.printf("  ntpServer: %s\n", ntpServer.c_str());
+    Serial.printf("  weatherServer: %s\n", weatherServer.c_str());
+
+    Serial.printf("  Screen SDA: %d, SCL: %d\n", pinScreenSDA, pinScreenSCL);
+    Serial.printf("  Tap sensor: %d\n", pinSensorTap);
+    Serial.printf("  SD pins: CS=%d MOSI=%d CLK=%d MISO=%d\n",
+                  pinSdCS, pinSdMOSI, pinSdCLK, pinSdMISO);
+
+    Serial.printf("  wifi entries: %d\n", wifi.size());
     for (auto& e : wifi) {
-      Serial.printf("   - ssid: %s, pass: %s\n", e.ssid.c_str(), e.pass.c_str());
+      Serial.printf("    - ssid: %s, pass: %s\n",
+                    e.ssid.c_str(), e.pass.c_str());
     }
   }
 };
@@ -131,7 +215,7 @@ const LocaleInfo locale_en = {
 };
 
 const LocaleInfo* getActiveLocale() {
-  if (LANG_CODE == "vi") {
+  if (config.langCode == "vi") {
     return &locale_vi;
   }
 
@@ -172,7 +256,7 @@ const unsigned long debounceDelay = 25;
 const unsigned long multiClickDelay = 500;
 
 Preferences preferences;
-ChronosESP32 chronos(BLUETOOTH_NAME);
+ChronosESP32 chronos;
 
 int onlineTemp = -999;
 int onlineHumidity = -1;
@@ -190,8 +274,8 @@ const unsigned long screenAutoCheckInterval = 60000;
 SPIClass sdSPI(HSPI);
 
 bool initSD() {
-  sdSPI.begin(SD_CLK, SD_MISO, SD_MOSI, SD_CS);
-  if (!SD.begin(SD_CS, sdSPI)) {
+  sdSPI.begin(config.pinSdCLK, config.pinSdMISO, config.pinSdMOSI, config.pinSdCS);
+  if (!SD.begin(config.pinSdCS, sdSPI)) {
     Serial.println("SD card initialization failed!");
     return false;
   }
@@ -203,16 +287,16 @@ bool loadConfig() {
   File configFile;
   bool useSD = initSD();
 
-  if (useSD && SD.exists(CONFIG_PATH)) {
-    configFile = SD.open(CONFIG_PATH, FILE_READ);
+  if (useSD && SD.exists(config.configPath)) {
+    configFile = SD.open(config.configPath, FILE_READ);
     Serial.println("Loading config from SD");
   } else {
-    if (!SPIFFS.begin(false)) {
+    if (!SPIFFS.begin(true)) {
       Serial.println("SPIFFS mount failed");
       return false;
     }
-    if (SPIFFS.exists(CONFIG_PATH)) {
-      configFile = SPIFFS.open(CONFIG_PATH, FILE_READ);
+    if (SPIFFS.exists(config.configPath)) {
+      configFile = SPIFFS.open(config.configPath, FILE_READ);
       Serial.println("Loading config from SPIFFS");
     } else {
       Serial.println("No config file found, using defaults");
@@ -255,7 +339,7 @@ bool saveConfig() {
   bool useSD = initSD();
 
   if (useSD) {
-    configFile = SD.open(CONFIG_PATH, FILE_WRITE);
+    configFile = SD.open(config.configPath, FILE_WRITE);
     if (!configFile) {
       Serial.println("Failed to open config file on SD for writing");
       // fallback to SPIFFS
@@ -264,11 +348,11 @@ bool saveConfig() {
   }
 
   if (!useSD) {
-    if (!SPIFFS.begin(false)) {
+    if (!SPIFFS.begin(true)) {
       Serial.println("SPIFFS mount failed");
       return false;
     }
-    configFile = SPIFFS.open(CONFIG_PATH, FILE_WRITE);
+    configFile = SPIFFS.open(config.configPath, FILE_WRITE);
   }
 
   if (!configFile) {
@@ -355,10 +439,10 @@ bool openWiFiManager() {
 
   u8g2.setCursor(0, 40);
   u8g2.print("AP: ");
-  u8g2.print(WIFI_AP_NAME);
+  u8g2.print(config.wifiAPName);
   u8g2.sendBuffer();
 
-  bool ok = wm.autoConnect(WIFI_AP_NAME);
+  bool ok = wm.autoConnect(config.wifiAPName.c_str());
   isPortalActive = false;
 
   if (!ok) {
@@ -460,7 +544,7 @@ void handleTripleClick() {
 }
 
 void checkButton() {
-  bool rawState = digitalRead(PIN_TAP);
+  bool rawState = digitalRead(config.pinSensorTap);
 
   if (rawState != lastRawState) {
     lastTransitionTime = millis();
@@ -496,7 +580,7 @@ void weatherTask(void *pvParameters) {
   Serial.println("[Weather] Background update started...");
 
   HTTPClient http;
-  http.begin(WEATHER_SERVER);
+  http.begin(config.weatherServer);
   int httpCode = http.GET();
 
   if (httpCode == HTTP_CODE_OK) {
@@ -550,7 +634,7 @@ bool updateOnlineWeather() {
 
 bool syncNTP() {
   if (WiFi.status() == WL_CONNECTED) {
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    configTime(config.gmtOffset_sec, config.daylightOffset_sec, config.ntpServer.c_str());
     Serial.println("NTP sync started");
     return true;
   }
@@ -597,7 +681,7 @@ void drawStatusBar() {
   // Bluetooth Icon
   u8g2.setFont(u8g2_font_open_iconic_embedded_1x_t);
   u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X, OFFSET_STATUSBAR_ICON_RIGHT_Y, 74);
-  if (!chronos.isConnected()) {
+  if (!config.bluetoothEnabled || !chronos.isConnected()) {
     u8g2.drawLine(OFFSET_STATUSBAR_ICON_RIGHT_X, OFFSET_STATUSBAR_ICON_RIGHT_Y, OFFSET_STATUSBAR_ICON_RIGHT_X + 7, OFFSET_STATUSBAR_ICON_RIGHT_Y - 7);
   }
 
@@ -616,22 +700,25 @@ void drawMainClock() {
 
   struct tm timeinfo;
   bool timeValid = false;
-  if (WiFi.status() == WL_CONNECTED && getLocalTime(&timeinfo)) {
+  if (getLocalTime(&timeinfo)) {
     timeValid = true;
     char h[3], m[3], s[3], p[3];
-    strftime(h, sizeof(h), "%I", &timeinfo); // 12-hour
+    if (config.is24Hour) {
+      strftime(h, sizeof(h), "%H", &timeinfo);   // 00–23
+      ampmStr = "";                           
+    } else {
+      strftime(h, sizeof(h), "%I", &timeinfo);   // 01–12
+      strftime(p, sizeof(p), "%p", &timeinfo);   // AM / PM
+      ampmStr = String(p);
+    }
+
+    // 分と秒
     strftime(m, sizeof(m), "%M", &timeinfo);
     strftime(s, sizeof(s), "%S", &timeinfo);
-    strftime(p, sizeof(p), "%p", &timeinfo);
+
     hourStr = String(h);
     minuteStr = String(m);
     secStr = String(s);
-    ampmStr = String(p);
-  } else {
-    hourStr = chronos.getHourZ();
-    minuteStr = chronos.getTime("%M");
-    secStr = chronos.getTime("%S");
-    ampmStr = chronos.getAmPmC();
   }
 
   const LocaleInfo* loc = getActiveLocale();
@@ -724,18 +811,36 @@ void setup(void) {
   cfg.ap.max_connection = 4;
   esp_wifi_set_config(WIFI_IF_AP, &cfg);
 
-  Wire.begin(PIN_SDA, PIN_SCL);
-
   loadConfig();
+  Wire.begin(config.pinScreenSDA, config.pinScreenSCL);
 
   u8g2.begin();
   u8g2.setContrast(config.brightness);
   u8g2.enableUTF8Print();
 
-  pinMode(PIN_TAP, INPUT_PULLUP);
+  pinMode(config.pinSensorTap, INPUT_PULLUP);
 
+  chronos.setName(config.bluetoothName);
+
+  chronos.setConnectionCallback([](bool enabled) {
+    if (enabled) syncLocalFromChronos();
+  });
+  chronos.setNotificationCallback([] (Notification notify) {
+    // notification
+  });
+  chronos.setConfigurationCallback([](Config _, uint32_t timestamp, uint32_t timezone) {
+syncLocalFromChronos();
+
+  bool is24Hour =chronos.is24Hour();
+  if (is24Hour != config.is24Hour) {
+    config.is24Hour = is24Hour;
+    saveConfig();
+  }
+  });
+
+  if (config.bluetoothEnabled) {
   chronos.begin();
-
+  }
   if (config.wifiEnabled) {
     connectWiFi();
   }
@@ -743,23 +848,19 @@ void setup(void) {
 
 void loop(void) {
   checkButton();
+    if (config.bluetoothEnabled) {
+    chronos.loop();
+    }
 
   if (isPortalActive) {
     // WiFiManager is blocking
   } else {
-    chronos.loop();
 
     if (config.wifiEnabled && WiFi.status() == WL_CONNECTED && !weatherUpdating) {
       if (millis() - lastWeatherUpdate > config.weatherInterval || lastWeatherUpdate == 0) {
         syncNTP();
         updateOnlineWeather();
       }
-    }
-   else if (chronos.isConnected()) {
-    if (millis() - lastChronoUpdate > config.chronoUpdateInverval || lastChronoUpdate == 0) {
-      syncLocalFromChronos();
-      lastChronoUpdate = millis();
-    }
     }
 
     checkScreenAutoOff();
