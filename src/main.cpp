@@ -26,7 +26,10 @@ const char *ntpServer = "time.google.com";
 const long gmtOffset_sec = 7 * 3600;
 const int daylightOffset_sec = 0;
 
-#define WEATHER_SERVER = "http://api.open-meteo.com/v1/forecast?latitude=10.762622&longitude=106.660172&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,is_day"
+#define WEATHER_SERVER "http://api.open-meteo.com/v1/forecast?latitude=10.762622&longitude=106.660172&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,is_day&daily=sunrise,sunset&timezone=auto"
+
+String onlineSunrise = "";
+String onlineSunset = "";
 
 //////////
 
@@ -42,16 +45,16 @@ const int daylightOffset_sec = 0;
 #define OFFSET_SEC_X 72
 #define OFFSET_SEC_Y 35
 
-#define OFFSET_WEATHER_ICON_X 88
+#define OFFSET_WEATHER_ICON_X 90
 #define OFFSET_WEATHER_ICON_Y 40
 
-#define OFFSET_WEATHER_TEMP_X 88
+#define OFFSET_WEATHER_TEMP_X 90
 #define OFFSET_WEATHER_TEMP_Y 55
 
-#define OFFSET_HUM_X 104
+#define OFFSET_HUM_X 110
 #define OFFSET_HUM_Y 33
 
-#define OFFSET_WIND_X 104
+#define OFFSET_WIND_X 110
 #define OFFSET_WIND_Y 42
 
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/U8X8_PIN_NONE);
@@ -283,10 +286,17 @@ bool updateOnlineWeather() {
     onlineWindSpeed = doc["current"]["wind_speed_10m"].as<float>();
     onlineWeatherCode = doc["current"]["weather_code"].as<int>();
     onlineIsDay = doc["current"]["is_day"].as<int>() == 1;
-    Serial.printf("Updated Open-Meteo: %dC, %d%%, %.1fm/s, Code: %d, Day: %d\n", 
-                  onlineTemp, onlineHumidity, onlineWindSpeed, onlineWeatherCode, onlineIsDay);
+
+    // Parse Sunrise / Sunset
+    // Format is "2024-xx-xxT06:xx"
+    String sr = doc["daily"]["sunrise"][0].as<String>();
+    String ss = doc["daily"]["sunset"][0].as<String>();
+    if (sr.length() > 11) onlineSunrise = sr.substring(11);
+    if (ss.length() > 11) onlineSunset = ss.substring(11);
   } else {
     Serial.println("Weather update failed: " + String(httpCode));
+    http.end();
+    return false;
   }
   http.end();
 
@@ -345,9 +355,9 @@ void drawStatusBar() {
 
   // Wifi Icon
   u8g2.setFont(u8g2_font_open_iconic_www_1x_t);
-  u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X, OFFSET_STATUSBAR_ICON_RIGHT_Y, 0x0051);
+  u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X + 10, OFFSET_STATUSBAR_ICON_RIGHT_Y, 0x0051);
   if (WiFi.status() != WL_CONNECTED) {
-    u8g2.drawLine(OFFSET_STATUSBAR_ICON_RIGHT_X + 1, OFFSET_STATUSBAR_ICON_RIGHT_Y, OFFSET_STATUSBAR_ICON_RIGHT_X + 12 + 7,OFFSET_STATUSBAR_ICON_RIGHT_Y+12 - 7);
+    u8g2.drawLine(OFFSET_STATUSBAR_ICON_RIGHT_X + 10 + 1, OFFSET_STATUSBAR_ICON_RIGHT_Y, OFFSET_STATUSBAR_ICON_RIGHT_X + 12 + 7,OFFSET_STATUSBAR_ICON_RIGHT_Y - 7);
   }
 }
 
@@ -377,14 +387,13 @@ void drawMainClock() {
   }
 
   String timeStr = hourStr + ":" + minuteStr;
-  u8g2.drawStr(OFFSET_TIME_X, OFFSET_Y_TIME, timeStr.c_str());
+  u8g2.drawStr(OFFSET_TIME_X, OFFSET_TIME_Y, timeStr.c_str()); // Corrected from OFFSET_Y_TIME
 
   u8g2.setFont(u8g2_font_6x10_tf);
   u8g2.drawStr(OFFSET_SEC_X, OFFSET_SEC_Y, secStr.c_str()); // Seconds above AM/PM
   u8g2.drawStr(OFFSET_SEC_X, OFFSET_SEC_Y + 10, ampmStr.c_str());
 
-  // Right: Weather
-  u8g2.setFont(u8g2_font_open_iconic_weather_2x_t);
+  // Right: Weather Icon
   
   uint8_t iconGlyph = 0x45; // Default: Sun
   int weatherCode = 0;
@@ -403,6 +412,7 @@ void drawMainClock() {
   else if ((weatherCode >= 71 && weatherCode <= 77) || (weatherCode >= 85 && weatherCode <= 86)) iconGlyph = 0x42; // Snow/Umbrella
   else if (weatherCode >= 95) iconGlyph = 0x47; // Thunder
 
+  u8g2.setFont(u8g2_font_open_iconic_weather_2x_t);
   u8g2.drawGlyph(OFFSET_WEATHER_ICON_X, OFFSET_WEATHER_ICON_Y, iconGlyph); 
 
   u8g2.setFont(u8g2_font_ncenB10_tr);
@@ -421,13 +431,26 @@ void drawMainClock() {
   }
 
   u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
-  String tempStr = String(temp) + "\u00B0C";
+  String tempStr = String(temp) + "C";
   u8g2.drawStr(OFFSET_WEATHER_TEMP_X, OFFSET_WEATHER_TEMP_Y, tempStr.c_str());
 
-  // Show Humidity and Wind Speed on the right of the weather icon
+  // Sunrise / Sunset at the bottom
+  if (onlineSunrise != "" && onlineSunset != "") {
+    u8g2.setFont(u8g2_font_open_iconic_weather_1x_t);
+    u8g2.drawGlyph(2, 63, 0x45); // Sun icon for rise
+    u8g2.setFont(u8g2_font_5x7_tf);
+    u8g2.drawStr(12, 63, onlineSunrise.c_str());
+
+    u8g2.setFont(u8g2_font_open_iconic_weather_1x_t);
+    u8g2.drawGlyph(65, 63, 0x44); // Moon/Sunset icon
+    u8g2.setFont(u8g2_font_5x7_tf);
+    u8g2.drawStr(75, 63, onlineSunset.c_str());
+  }
+
+  // Humidity and Wind (Small)
   u8g2.setFont(u8g2_font_5x7_tf);
-  String humStr = "H:" + String(humidity) + "%";
-  String windStr = "W:" + String(wind, 1) + "m/s";
+  String humStr = "H" + String(humidity) + "%";
+  String windStr = "W" + String(wind, 1) + "m/s";
   u8g2.drawStr(OFFSET_HUM_X, OFFSET_HUM_Y, humStr.c_str());
   u8g2.drawStr(OFFSET_WIND_X, OFFSET_WIND_Y, windStr.c_str());
 }
