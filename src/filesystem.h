@@ -4,6 +4,8 @@
 #include <SD.h>
 #include <SPIFFS.h>
 
+#include <vector>
+
 extern bool sdInitialized;
 extern SPIClass sdSPI;
 

@@ -3,10 +3,12 @@
 #include <SD.h>
 #include <SPIFFS.h>
 
+#include <vector>
+
 #include "config.h"
 
 bool sdInitialized = false;
-SPIClass sdSPI(HSPI);
+SPIClass sdSPI(FSPI);
 
 void initFilesystem() {
   if (sdInitialized) return;
@@ -20,7 +22,7 @@ void initFilesystem() {
   // SD を使わない、または SD が未初期化 → SPIFFS を使う
   if (!SPIFFS.begin(true)) {
     Serial.println("SPIFFS mount failed");
-    return fs::File();
+    return;
   }
 
   Serial.println("SD card initialized.");
