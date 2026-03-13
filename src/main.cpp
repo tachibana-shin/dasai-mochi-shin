@@ -9,6 +9,7 @@
 #include "config.h"
 #include "display.h"
 #include "filesystem.h"
+#include "router.h"
 #include "time_utils.h"
 #include "weather.h"
 #include "wifi_manager.h"
@@ -32,10 +33,8 @@ void loop() {
   // display module only check auto on/off device not is function show route
   loopDisplay();
 
-  if (!isPortalActive) {
-    loopWeather();
-    loopClock();
-  }
+  // draw router
+  Router::loop();
 
   delay(10);
 }

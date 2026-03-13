@@ -30,7 +30,9 @@ void AppConfig::fromJson(const JsonObject& doc) {
 
   weatherServer = doc["weatherServer"] | weatherServer;
   configPath = doc["configPath"] | configPath;
+
   mochiSpeedDivisor = doc["mochiSpeedDivisor"] | mochiSpeedDivisor;
+  mochiNegative = doc["mochiNegative"] | mochiNegative;
 
   screenFlipMode = doc["screenFlipMode"] | screenFlipMode;
   screenNegative = doc["screenNegative"] | screenNegative;
@@ -81,12 +83,14 @@ void AppConfig::toJson(JsonDocument& doc) const {
   doc["weatherServer"] = weatherServer;
   doc["configPath"] = configPath;
 
+  doc["mochiSpeedDivisor"] = mochiSpeedDivisor;
+  doc["mochiNegative"] = mochiNegative;
+
   doc["screenFlipMode"] = screenFlipMode;
   doc["screenNegative"] = screenNegative;
   doc["screenWidth"] = screenWidth;
   doc["screenHeight"] = screenHeight;
 
-  doc["mochiSpeedDivisor"] = mochiSpeedDivisor;
 
   JsonArray arr = doc["wifi"].to<JsonArray>();
   for (auto& e : wifi) {

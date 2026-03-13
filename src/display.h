@@ -8,7 +8,7 @@ extern bool screenOn;
 
 void initDisplay();
 void toggleScreen();
-void showMessage(const char* msg);
+void showMessage(const char* msg, uint32_t timeout = 1000);
 void loopDisplay();
 void sendBuffer();
 

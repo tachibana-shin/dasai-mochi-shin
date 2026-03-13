@@ -3,10 +3,7 @@
 
 #include <Arduino.h>
 
-extern bool isPortalActive;
-
 void initWiFi();
-void connectWiFi();
-bool openWiFiManager();
+bool loopWiFiManager();
 
 #endif

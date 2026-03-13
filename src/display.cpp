@@ -30,11 +30,12 @@ void toggleScreen() {
   Serial.println(screenOn ? "Screen ON" : "Screen OFF");
 }
 
-void showMessage(const char* msg) {
+void showMessage(const char* msg, uint32_t timeout) {
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
   u8g2.drawStr(0, 20, msg);
   sendBuffer();
+  delay(timeout);
 }
 
 static void checkScreenAutoOff() {

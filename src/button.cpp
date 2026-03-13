@@ -5,6 +5,7 @@
 
 #include "config.h"
 #include "display.h"
+#include "router.h"
 #include "wifi_manager.h"
 
 static unsigned long lastTransitionTime = 0;
@@ -39,16 +40,14 @@ static void handleTripleClick() {
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
   if (config.wifiEnabled) {
-    u8g2.drawStr(0, 20, "WiFi ON");
-    sendBuffer();
-    delay(1000);
-    connectWiFi();
+    showMessage("WiFi ON");
+
+    Router::push(Route::WIFI_MANAGER);
   } else {
-    u8g2.drawStr(0, 20, "WiFi OFF");
-    sendBuffer();
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
-    delay(1000);
+
+    showMessage("WiFi OFF");
   }
 }
 

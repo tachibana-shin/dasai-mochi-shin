@@ -6,8 +6,7 @@
 
 #include "config.h"
 #include "display.h"
-
-bool isPortalActive = false;
+#include "router.h"
 
 void initWiFi() {
   WiFi.disconnect(true, true);
@@ -42,36 +41,7 @@ static bool wifiConnectNew(String ssid, String pass, bool connect) {
   return ret;
 }
 
-bool openWiFiManager() {
-  isPortalActive = true;
-  u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
-  u8g2.drawStr(0, 20, "WiFi Setup");
-  sendBuffer();
-
-  WiFiManager wm;
-  wm.setClass("invert");
-  wm.setTimeout(180);
-  wm.setConfigPortalTimeout(180);
-  WiFi.setTxPower(WIFI_POWER_8_5dBm);
-
-  u8g2.setCursor(0, 40);
-  u8g2.print("AP: ");
-  u8g2.print(config.wifiAPName);
-  sendBuffer();
-
-  bool ok = wm.autoConnect(config.wifiAPName.c_str());
-  isPortalActive = false;
-
-  if (!ok) {
-    Serial.println("[WiFiManager] Failed or timeout");
-    return false;
-  }
-
-  return true;
-}
-
-void connectWiFi() {
+void loopWiFiManager() {
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
   u8g2.drawStr(0, 20, "WiFi...");
@@ -95,11 +65,37 @@ void connectWiFi() {
   // }
 
   Serial.println("[WiFi] All saved failed, opening WiFiManager");
-  if (!openWiFiManager()) {
+
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
+  u8g2.drawStr(0, 20, "WiFi Setup");
+  sendBuffer();
+
+  WiFiManager wm;
+  wm.setClass("invert");
+  wm.setTimeout(180);
+  wm.setConfigPortalTimeout(180);
+  WiFi.setTxPower(WIFI_POWER_8_5dBm);
+
+  u8g2.setCursor(0, 40);
+  u8g2.print("AP: ");
+  u8g2.print(config.wifiAPName);
+  sendBuffer();
+
+  bool ok = wm.autoConnect(config.wifiAPName.c_str());
+  if (!ok) {
+    Serial.println("[WiFiManager] Failed or timeout");
+    showMessage("WiFi Failed", 1500);
+  } else {
     u8g2.clearBuffer();
-    u8g2.drawStr(0, 20, "WiFi Failed");
+    u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
+    u8g2.drawStr(0, 20, "WiFi connected:");
+    u8g2.drawStr(0, 40, wm.getWiFiSSID().c_str());
     sendBuffer();
+
     delay(1500);
-    return;
   }
+
+  // auto back
+  Router::pop();
 }
