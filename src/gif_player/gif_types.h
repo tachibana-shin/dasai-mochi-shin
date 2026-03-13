@@ -30,6 +30,5 @@ typedef struct {
 //   [..]      uint8_t   frames[frame_count][QGIF_FRAME_SIZE]
 //
 #define QGIF_HEADER_SIZE 5
-#define QGIF_MAX_FRAMES 255
 
 #endif  // GIF_TYPES_H
