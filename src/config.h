@@ -3,8 +3,11 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <SPI.h>
 
 #include <vector>
+
+extern SPIClass sdSPI;
 
 struct WifiEntry {
   String ssid;

@@ -107,28 +107,30 @@ static void drawMainClock() {
   int weatherCode = -1;
   bool isDay = true;
 
+  const uint8_t* icon = icon_cloud_16x16;  // default
   if (WiFi.status() == WL_CONNECTED && onlineWeatherCode != -1) {
     weatherCode = onlineWeatherCode;
     isDay = onlineIsDay;
-    const uint8_t* icon = icon_cloud_16x16;  // default
-
-    if (weatherCode == 0)
-      icon = isDay ? icon_sun_16x16 : icon_moon_16x16;
-    else if (weatherCode == 1 || weatherCode == 2)
-      icon = icon_cloud_16x16;
-    else if (weatherCode == 3 || weatherCode == 45 || weatherCode == 48)
-      icon = icon_cloud_16x16;
-    else if ((weatherCode >= 51 && weatherCode <= 65) ||
-             (weatherCode >= 80 && weatherCode <= 82))
-      icon = icon_rain_16x16;
-    else if ((weatherCode >= 71 && weatherCode <= 77) ||
-             (weatherCode >= 85 && weatherCode <= 86))
-      icon = icon_snow_16x16;
-    else if (weatherCode >= 95)
-      icon = icon_thunder_16x16;
-
-    u8g2.drawXBM(OFFSET_WEATHER_ICON_X, OFFSET_WEATHER_ICON_Y, 16, 16, icon_moon_16x16);
+  } else {
+    weatherCode = chronos.getWeatherAt(0).icon;
   }
+
+  if (weatherCode == 0)
+    icon = isDay ? icon_sun_16x16 : icon_moon_16x16;
+  else if (weatherCode == 1 || weatherCode == 2)
+    icon = icon_cloud_16x16;
+  else if (weatherCode == 3 || weatherCode == 45 || weatherCode == 48)
+    icon = icon_cloud_16x16;
+  else if ((weatherCode >= 51 && weatherCode <= 65) ||
+           (weatherCode >= 80 && weatherCode <= 82))
+    icon = icon_rain_16x16;
+  else if ((weatherCode >= 71 && weatherCode <= 77) ||
+           (weatherCode >= 85 && weatherCode <= 86))
+    icon = icon_snow_16x16;
+  else if (weatherCode >= 95)
+    icon = icon_thunder_16x16;
+
+  u8g2.drawXBM(OFFSET_WEATHER_ICON_X, OFFSET_WEATHER_ICON_Y, 16, 16, icon);
 
   u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
   String tempStr = "??";

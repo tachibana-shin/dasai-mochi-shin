@@ -20,7 +20,15 @@ void initWiFi() {
   esp_wifi_set_config(WIFI_IF_AP, &cfg);
 
   if (config.wifiEnabled) {
-    connectWiFi();
+    WiFiManager wm;
+    wm.setClass("invert");
+    wm.setTimeout(180);
+    wm.setConfigPortalTimeout(180);
+    WiFi.setTxPower(WIFI_POWER_8_5dBm);
+
+    wm.setConfigPortalBlocking(false);
+    wm.autoConnect(config.wifiAPName.c_str());
+    wm.setConfigPortalBlocking(true);
   }
 }
 
@@ -60,13 +68,6 @@ bool openWiFiManager() {
     return false;
   }
 
-  WifiEntry e;
-  e.ssid = WiFi.SSID();
-  e.pass = WiFi.psk();
-  config.wifi.push_back(e);
-  saveConfig();
-
-  Serial.println("[WiFiManager] New WiFi Saved");
   return true;
 }
 
@@ -101,7 +102,4 @@ void connectWiFi() {
     delay(1500);
     return;
   }
-
-  Serial.println("[WiFi] Reconnecting with new credentials...");
-  wifiConnectNew(WiFi.SSID(), WiFi.psk(), true);
 }

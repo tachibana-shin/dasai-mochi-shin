@@ -1,7 +1,7 @@
 #include "config.h"
 #include <FS.h>
 #include <SD.h>
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #include <SPI.h>
 
 AppConfig config;
@@ -117,7 +117,7 @@ void AppConfig::debugPrint() const {
     }
 }
 
-static SPIClass sdSPI(HSPI);
+SPIClass sdSPI(HSPI);
 
 static bool initSD() {
     sdSPI.begin(config.pinSdCLK, config.pinSdMISO, config.pinSdMOSI,
@@ -138,13 +138,13 @@ bool loadConfig() {
         configFile = SD.open(config.configPath, FILE_READ);
         Serial.println("Loading config from SD");
     } else {
-        if (!SPIFFS.begin(true)) {
-            Serial.println("SPIFFS mount failed");
+        if (!LittleFS.begin(true)) {
+            Serial.println("LittleFS mount failed");
             return false;
         }
-        if (SPIFFS.exists(config.configPath)) {
-            configFile = SPIFFS.open(config.configPath, FILE_READ);
-            Serial.println("Loading config from SPIFFS");
+        if (LittleFS.exists(config.configPath)) {
+            configFile = LittleFS.open(config.configPath, FILE_READ);
+            Serial.println("Loading config from LittleFS");
         } else {
             Serial.println("No config file found, using defaults");
             return false;
@@ -186,11 +186,11 @@ bool saveConfig() {
     }
 
     if (!useSD) {
-        if (!SPIFFS.begin(true)) {
-            Serial.println("SPIFFS mount failed");
+        if (!LittleFS.begin(true)) {
+            Serial.println("LittleFS mount failed");
             return false;
         }
-        configFile = SPIFFS.open(config.configPath, FILE_WRITE);
+        configFile = LittleFS.open(config.configPath, FILE_WRITE);
     }
 
     if (!configFile) {
