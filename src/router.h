@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 
+#include <vector>
+
 enum class Route : uint8_t {
   CLOCK,
   WIFI_MANAGER,

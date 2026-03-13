@@ -13,6 +13,7 @@
 #include "time_utils.h"
 #include "weather.h"
 #include "wifi_manager.h"
+#include "gif_player/gif_player.h"
 
 void setup() {
   Serial.begin(115200);
@@ -25,6 +26,8 @@ void setup() {
   initButton();
   initWiFi();
   initChronos();
+
+  gifPlayerSetFile("test.qgif");
 }
 
 void loop() {

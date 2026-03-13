@@ -1,13 +1,14 @@
 #include "router.h"
 
+#include <vector>
+
 #include "clock.h"
+#include "gif_player/gif_player.h"
 #include "weather.h"
 #include "wifi_manager.h"
 
-#include <vector>
-
 // 初期状態は CLOCK のみ
-std::vector<Route> Router::stack = {Route::CLOCK};
+std::vector<Route> Router::stack = {Route::DASAI_MOCHI};
 
 // 新しい画面を積む（push）
 void Router::push(Route r) { stack.push_back(r); }
@@ -48,6 +49,7 @@ void Router::loop() {
       break;
 
     case Route::DASAI_MOCHI:
+      gifPlayerTick();
       break;
 
     default:
