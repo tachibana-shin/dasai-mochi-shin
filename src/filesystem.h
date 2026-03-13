@@ -7,7 +7,7 @@
 extern bool sdInitialized;
 extern SPIClass sdSPI;
 
-void initSD();
+void initFilesystem();
 fs::File getFile(const String& path, const char* mode, bool useSD = true);
 
 #endif

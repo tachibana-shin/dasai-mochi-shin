@@ -18,7 +18,7 @@ void setup() {
   Serial.setDebugOutput(true);
 
   loadBootConfig();
-  initSD();
+  initFilesystem();
   loadConfig();
   initDisplay();
   initButton();
