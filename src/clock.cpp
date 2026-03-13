@@ -187,5 +187,5 @@ void loopClock() {
   u8g2.clearBuffer();
   drawStatusBar();
   drawMainClock();
-  u8g2.sendBuffer();
+  sendBuffer();
 }

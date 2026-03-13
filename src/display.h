@@ -10,5 +10,6 @@ void initDisplay();
 void toggleScreen();
 void showMessage(const char* msg);
 void loopDisplay();
+void sendBuffer();
 
 #endif

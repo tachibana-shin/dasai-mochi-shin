@@ -47,7 +47,7 @@ bool openWiFiManager() {
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
   u8g2.drawStr(0, 20, "WiFi Setup");
-  u8g2.sendBuffer();
+  sendBuffer();
 
   WiFiManager wm;
   wm.setClass("invert");
@@ -58,7 +58,7 @@ bool openWiFiManager() {
   u8g2.setCursor(0, 40);
   u8g2.print("AP: ");
   u8g2.print(config.wifiAPName);
-  u8g2.sendBuffer();
+  sendBuffer();
 
   bool ok = wm.autoConnect(config.wifiAPName.c_str());
   isPortalActive = false;
@@ -75,7 +75,7 @@ void connectWiFi() {
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
   u8g2.drawStr(0, 20, "WiFi...");
-  u8g2.sendBuffer();
+  sendBuffer();
 
   Serial.println("[WiFi] Attempting connections from config...");
 
@@ -98,7 +98,7 @@ void connectWiFi() {
   if (!openWiFiManager()) {
     u8g2.clearBuffer();
     u8g2.drawStr(0, 20, "WiFi Failed");
-    u8g2.sendBuffer();
+    sendBuffer();
     delay(1500);
     return;
   }

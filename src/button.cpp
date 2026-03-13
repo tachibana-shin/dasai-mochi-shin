@@ -40,12 +40,12 @@ static void handleTripleClick() {
   u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
   if (config.wifiEnabled) {
     u8g2.drawStr(0, 20, "WiFi ON");
-    u8g2.sendBuffer();
+    sendBuffer();
     delay(1000);
     connectWiFi();
   } else {
     u8g2.drawStr(0, 20, "WiFi OFF");
-    u8g2.sendBuffer();
+    sendBuffer();
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
     delay(1000);

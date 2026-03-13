@@ -50,6 +50,14 @@ struct AppConfig {
 
   String configPath = "/config.json";
 
+  // config for Dasai Mochi mode
+  bool screenFlipMode = false;
+  bool screenNegative = false;
+  uint16_t screenWidth = 128;
+  uint16_t screenHeight = 64;
+  
+  uint16_t mochiSpeedDivisor = 1;
+
   void fromJson(const JsonObject& doc);
   void fromJsonBoot(const JsonObject& doc);
   void toJson(JsonDocument& doc) const;

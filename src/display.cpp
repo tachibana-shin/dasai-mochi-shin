@@ -34,7 +34,7 @@ void showMessage(const char* msg) {
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
   u8g2.drawStr(0, 20, msg);
-  u8g2.sendBuffer();
+  sendBuffer();
 }
 
 static void checkScreenAutoOff() {
@@ -79,3 +79,35 @@ static void checkScreenAutoOff() {
 }
 
 void loopDisplay() { checkScreenAutoOff(); }
+void sendBuffer() {
+  if (!config.screenNegative) {
+    uint8_t* buf = u8g2.getBufferPtr();
+    const uint16_t len =
+        (uint16_t)(config.screenWidth / 8) * config.screenHeight;
+
+    for (uint16_t i = 0; i < len; i++) {
+      buf[i] ^= 0xFF;
+    }
+  }
+
+  // With default R0: apply 180 rotation only when flip mode is on
+  if (config.screenFlipMode) {
+    uint8_t* buf = u8g2.getBufferPtr();
+    const uint16_t len =
+        (uint16_t)(config.screenWidth / 8) * config.screenHeight;
+    for (uint16_t i = 0; i < len / 2; i++) {
+      uint8_t tmp = buf[i];
+      buf[i] = buf[len - 1 - i];
+      buf[len - 1 - i] = tmp;
+    }
+    for (uint16_t i = 0; i < len; i++) {
+      uint8_t b = buf[i];
+      b = ((b & 0xF0) >> 4) | ((b & 0x0F) << 4);
+      b = ((b & 0xCC) >> 2) | ((b & 0x33) << 2);
+      b = ((b & 0xAA) >> 1) | ((b & 0x55) << 1);
+      buf[i] = b;
+    }
+  }
+
+  u8g2.sendBuffer();
+}
