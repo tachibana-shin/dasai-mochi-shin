@@ -47,3 +47,30 @@ fs::File getFile(const String& path, const char* mode, bool useSD) {
 
   return file;
 }
+
+std::vector<String> readdir(const String& path, bool useSD) {
+  std::vector<String> fileList;
+  fs::File root;
+
+  if (useSD && sdInitialized) {
+    root = SD.open(path);
+  } else {
+    root = SPIFFS.open(path);
+  }
+
+  if (!root || !root.isDirectory()) {
+    return fileList;
+  }
+
+  fs::File entry = root.openNextFile();
+  while (entry) {
+    String name = String(entry.name());
+    fileList.push_back(name);
+
+    entry.close();
+    entry = root.openNextFile();
+  }
+
+  root.close();
+  return fileList;
+}

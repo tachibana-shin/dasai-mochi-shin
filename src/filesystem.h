@@ -9,5 +9,6 @@ extern SPIClass sdSPI;
 
 void initFilesystem();
 fs::File getFile(const String& path, const char* mode, bool useSD = true);
+std::vector<String> readdir(const String& path, bool useSD = true);
 
 #endif
