@@ -10,6 +10,14 @@
 bool sdInitialized = false;
 SPIClass sdSPI(FSPI);
 
+void initFFS() {
+  // SD を使わない、または SD が未初期化 → SPIFFS を使う
+  if (!SPIFFS.begin(true)) {
+    Serial.println("SPIFFS mount failed");
+    return;
+  }
+}
+
 void initFilesystem() {
   if (sdInitialized) return;
 
@@ -17,16 +25,11 @@ void initFilesystem() {
               config.pinSdCS);
   if (!SD.begin(config.pinSdCS, sdSPI)) {
     Serial.println("SD card initialization failed!");
-    return;
+  } else {
+    Serial.println("SD card initialized.");
+    sdInitialized = true;
   }
-  // SD を使わない、または SD が未初期化 → SPIFFS を使う
-  if (!SPIFFS.begin(true)) {
-    Serial.println("SPIFFS mount failed");
-    return;
-  }
-
-  Serial.println("SD card initialized.");
-  sdInitialized = true;
+  initFFS();
 
   if (!ensureDirectories(config.homePath)) {
     Serial.println("Failed to create folders for homePath");

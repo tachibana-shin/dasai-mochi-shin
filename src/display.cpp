@@ -81,7 +81,7 @@ static void checkScreenAutoOff() {
 
 void loopDisplay() { checkScreenAutoOff(); }
 void sendBuffer() {
-  if (!config.screenNegative) {
+  if (config.screenNegative) {
     uint8_t* buf = u8g2.getBufferPtr();
     const uint16_t len =
         (uint16_t)(config.screenWidth / 8) * config.screenHeight;

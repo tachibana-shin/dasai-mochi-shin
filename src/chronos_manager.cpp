@@ -30,7 +30,7 @@ void initChronos() {
 }
 
 void loopChronos() {
-    if (config.bluetoothEnabled) {
+  if (config.bluetoothEnabled) {
     chronos.loop();
   }
 }

@@ -2,6 +2,8 @@
 
 #include <SPIFFS.h>
 
+#include <cstring>
+
 #include "../config.h"
 #include "../display.h"
 #include "../filesystem.h"
@@ -25,6 +27,11 @@ static uint32_t _dataOffset = 0;  // byte offset to first frame in file
 static String _currentFile;
 static String _requestedFile;
 static bool _fileChanged = false;
+
+static const uint8_t *_memData = nullptr;
+static size_t _memSize = 0;
+static bool _playingFromMem = false;
+static bool _loop = true;
 
 // ---------------------------------------------------------------------------
 // Private helpers
@@ -155,6 +162,8 @@ static bool _openFile(const String &filepath) {
   _width = width;
   _height = height;
   _playing = true;
+  _playingFromMem = false;
+  _loop = true;
   return true;
 }
 
@@ -162,8 +171,15 @@ static bool _openFile(const String &filepath) {
 static bool _readFrame(uint16_t idx) {
   if (!_frameBuf) return false;
   uint32_t off = _dataOffset + (uint32_t)idx * _frameBufSize;
-  if (!_file.seek(off)) return false;
-  return _file.read(_frameBuf, _frameBufSize) == _frameBufSize;
+
+  if (_playingFromMem) {
+    if (!_memData || off + _frameBufSize > _memSize) return false;
+    memcpy(_frameBuf, _memData + off, _frameBufSize);
+    return true;
+  } else {
+    if (!_file.seek(off)) return false;
+    return _file.read(_frameBuf, _frameBufSize) == _frameBufSize;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -187,7 +203,7 @@ String gifPlayerGetCurrentFile() {
 static void gifRenderFrame(uint8_t *frameData, uint16_t width,
                            uint16_t height) {
   // Invert polarity unless Negative GIF mode is on
-  if (config.mochiNegative) {
+  if (!config.mochiNegative) {
     uint16_t dataLen = ((width + 7) / 8) * height;
     for (uint16_t i = 0; i < dataLen; i++) frameData[i] ^= 0xFF;
   }
@@ -213,6 +229,9 @@ void gifPlayerTick() {
       _playing = false;
       _currentFile = "";
       _freeFrameBuf();  // free buffer when stopped
+      _memData = nullptr;
+      _memSize = 0;
+      _playingFromMem = false;
     }
   }
 
@@ -231,21 +250,109 @@ void gifPlayerTick() {
   _lastFrameMs = millis();
   _currentFrame++;
   if (_currentFrame >= _frameCount) {
-    _currentFrame = 0;  // loop back to first frame
+    if (_loop) {
+      _currentFrame = 0;  // loop back to first frame
+    } else {
+      _playing = false;  // stop after one cycle
+    }
   }
 }
 
 void gifPlayerStop() {
   _playing = false;
   _currentFile = "";
-  _freeFrameBuf();  // free buffer when stopped
+  _freeFrameBuf();
+  if (_file) _file.close();
+  _memData = nullptr;
+  _memSize = 0;
+  _playingFromMem = false;
 }
 
 bool isEndGif() {
-  if (!_playing || !_frameBuf || !_delays) return false;
-  return _currentFrame >= _frameCount;
+  bool ended = (!_playing && _frameCount > 0) ||
+               (_playing && _currentFrame >= _frameCount && !_loop);
+
+  if (_playing && _currentFrame >= _frameCount && !_loop) ended = true;
+
+  return ended;
 }
 
 void resetFrame() {
   _currentFrame = 0;
+  _lastFrameMs = 0;
+}
+
+void gifPlayerPlayMemory(const uint8_t *data, size_t len, bool loop) {
+  // Stop any current playback
+  if (_file) _file.close();
+  _playing = false;
+  _freeFrameBuf();
+  _memData = data;
+  _memSize = len;
+  _playingFromMem = true;
+  _currentFile = "";
+  _requestedFile = "";
+  _fileChanged = false;
+
+  // Parse header from memory
+  uint32_t pos = 0;
+  uint8_t firstByte = data[pos++];
+  uint16_t frameCount;
+  uint16_t width, height;
+  uint8_t headerSize;
+
+  if (firstByte != 0) {
+    // Old format
+    if (pos + 4 > len) return;
+    frameCount = firstByte;
+    width = data[pos] | ((uint16_t)data[pos + 1] << 8);
+    height = data[pos + 2] | ((uint16_t)data[pos + 3] << 8);
+    pos += 4;
+    headerSize = 5;
+  } else {
+    // New format (qgif+)
+    if (pos + 6 > len) return;
+    frameCount = data[pos] | ((uint16_t)data[pos + 1] << 8);
+    width = data[pos + 2] | ((uint16_t)data[pos + 3] << 8);
+    height = data[pos + 4] | ((uint16_t)data[pos + 5] << 8);
+    pos += 6;
+    headerSize = 7;
+  }
+
+  if (frameCount == 0) return;
+
+  uint16_t frameBytes = ((width + 7) / 8) * height;
+  if (frameBytes == 0) return;
+
+  // Allocate delays
+  _delays = (uint16_t *)malloc(frameCount * sizeof(uint16_t));
+  if (!_delays) return;
+
+  uint16_t delayBytes = frameCount * 2;
+  if (pos + delayBytes > len) {
+    free(_delays);
+    _delays = nullptr;
+    return;
+  }
+  for (uint16_t i = 0; i < frameCount; i++) {
+    _delays[i] = data[pos + i * 2] | ((uint16_t)data[pos + i * 2 + 1] << 8);
+  }
+  pos += delayBytes;
+
+  _frameBuf = (uint8_t *)malloc(frameBytes);
+  if (!_frameBuf) {
+    free(_delays);
+    _delays = nullptr;
+    return;
+  }
+  _frameBufSize = frameBytes;
+  _dataOffset = pos;  // start of frame data
+
+  _frameCount = frameCount;
+  _width = width;
+  _height = height;
+  _currentFrame = 0;
+  _lastFrameMs = 0;
+  _playing = true;
+  _loop = loop;
 }

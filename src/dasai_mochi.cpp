@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "assets/intro.h"
 #include "config.h"
 #include "display.h"
 #include "filesystem.h"
@@ -20,9 +21,23 @@ void initDasaiMochi() {
     }
   }
 
+  // boot image
+  gifPlayerPlayMemory(src_assets_intro_qgif, src_assets_intro_qgif_len, false);
+  // emulator call loop() to complete boot image;
+  while (!isEndGif()) {
+    gifPlayerTick();
+
+    delay(10);
+  }
+
   if (qgifs.size() == 0) {
     Serial.println("No GIF files found");
     showMessage("No GIF files found", 3000);
+
+    // should empty gif then loop gif intro
+
+    gifPlayerPlayMemory(src_assets_intro_qgif, src_assets_intro_qgif_len, true);
+
     return;
   }
 
@@ -31,6 +46,8 @@ void initDasaiMochi() {
 
 void nextDasaiMochi() {
   resetFrame();
+  if (allQGifs.size() == 0) return;
+
   gifPlayerSetFile(config.homePath + "/DasaiMochi/Mochi/" +
                    allQGifs[random(0, allQGifs.size())]);
 }

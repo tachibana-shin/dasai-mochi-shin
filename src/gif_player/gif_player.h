@@ -26,4 +26,8 @@ bool isEndGif();
 // Reset frame to first frame
 void resetFrame();
 
+// Play a GIF from RAM (no file I/O).
+// The data must remain valid while playing.
+void gifPlayerPlayMemory(const uint8_t *data, size_t len, bool loop);
+
 #endif  // GIF_PLAYER_H

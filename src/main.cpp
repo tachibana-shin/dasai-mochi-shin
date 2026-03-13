@@ -19,13 +19,15 @@ void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
 
+  initFFS();
   loadBootConfig();
   initFilesystem();
   loadConfig();
   initDisplay();
   initButton();
-  initWiFi();
   initChronos();
+  initWiFi();
+  // boot image in initDasaiMochi
   initDasaiMochi();
 }
 
