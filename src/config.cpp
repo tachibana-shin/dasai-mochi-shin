@@ -29,7 +29,7 @@ void AppConfig::fromJson(const JsonObject& doc) {
   ntpServer = doc["ntpServer"] | ntpServer;
 
   weatherServer = doc["weatherServer"] | weatherServer;
-  configPath = doc["configPath"] | configPath;
+  homePath = doc["homePath"] | homePath;
 
   mochiSpeedDivisor = doc["mochiSpeedDivisor"] | mochiSpeedDivisor;
   mochiNegative = doc["mochiNegative"] | mochiNegative;
@@ -81,7 +81,7 @@ void AppConfig::toJson(JsonDocument& doc) const {
   doc["ntpServer"] = ntpServer;
 
   doc["weatherServer"] = weatherServer;
-  doc["configPath"] = configPath;
+  doc["homePath"] = homePath;
 
   doc["mochiSpeedDivisor"] = mochiSpeedDivisor;
   doc["mochiNegative"] = mochiNegative;
@@ -90,7 +90,6 @@ void AppConfig::toJson(JsonDocument& doc) const {
   doc["screenNegative"] = screenNegative;
   doc["screenWidth"] = screenWidth;
   doc["screenHeight"] = screenHeight;
-
 
   JsonArray arr = doc["wifi"].to<JsonArray>();
   for (auto& e : wifi) {
@@ -164,7 +163,7 @@ bool loadBootConfig() {
 }
 
 bool loadConfig() {
-  fs::File configFile = getFile(config.configPath, FILE_READ);
+  fs::File configFile = getFile(config.homePath + "/config.json", FILE_READ);
   if (!configFile) {
     Serial.println("Failed to open config file");
     return false;
@@ -209,7 +208,7 @@ bool saveConfig() {
   JsonDocument doc;
   config.toJson(doc);
 
-  fs::File configFile = getFile(config.configPath, FILE_WRITE);
+  fs::File configFile = getFile(config.homePath + "/config.json", FILE_WRITE);
   if (!configFile) {
     Serial.println("Failed to open config file for writing");
     return false;
