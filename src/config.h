@@ -48,7 +48,7 @@ struct AppConfig {
       "current=temperature_2m,relative_humidity_2m,wind_speed_10m,"
       "weather_code,is_day&daily=sunrise,sunset&timezone=auto";
 
-  String homePath = "/Dasai Mochi";
+  String homePath = "/DasaiMochi";
 
   // config for Dasai Mochi mode
   uint16_t mochiSpeedDivisor = 1;

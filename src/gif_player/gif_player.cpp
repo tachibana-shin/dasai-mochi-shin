@@ -44,15 +44,14 @@ static void _freeFrameBuf() {
 }
 
 // Open a .qgif file, parse header + delays, prepare for frame streaming.
-static bool _openFile(const String &filename) {
+static bool _openFile(const String &filepath) {
   if (_file) _file.close();
   _playing = false;
   _freeFrameBuf();  // free old buffer
 
-  String path = "/" + filename;
-  _file = getFile(path, FILE_READ);
+  _file = getFile(filepath, FILE_READ);
   if (!_file) {
-    Serial.println("gifPlayer: cannot open " + path);
+    Serial.println("gifPlayer: cannot open " + filepath);
     return false;
   }
 
@@ -151,7 +150,7 @@ static bool _openFile(const String &filename) {
   _dataOffset = headerSize + delayBytes;
   _currentFrame = 0;
   _lastFrameMs = 0;
-  _currentFile = filename;
+  _currentFile = filepath;
   _frameCount = frameCount;
   _width = width;
   _height = height;
@@ -234,4 +233,19 @@ void gifPlayerTick() {
   if (_currentFrame >= _frameCount) {
     _currentFrame = 0;  // loop back to first frame
   }
+}
+
+void gifPlayerStop() {
+  _playing = false;
+  _currentFile = "";
+  _freeFrameBuf();  // free buffer when stopped
+}
+
+bool isEndGif() {
+  if (!_playing || !_frameBuf || !_delays) return false;
+  return _currentFrame >= _frameCount;
+}
+
+void resetFrame() {
+  _currentFrame = 0;
 }

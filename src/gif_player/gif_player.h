@@ -17,4 +17,13 @@ String gifPlayerGetCurrentFile();
 // Renders the next frame when timing is due.
 void gifPlayerTick();
 
+// Stop playback and free memory.
+void gifPlayerStop();
+
+// Check if the GIF has finished playing (only valid when playing).
+bool isEndGif();
+
+// Reset frame to first frame
+void resetFrame();
+
 #endif  // GIF_PLAYER_H

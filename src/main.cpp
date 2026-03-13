@@ -7,13 +7,13 @@
 #include "chronos_manager.h"
 #include "clock.h"
 #include "config.h"
+#include "dasai_mochi.h"
 #include "display.h"
 #include "filesystem.h"
 #include "router.h"
 #include "time_utils.h"
 #include "weather.h"
 #include "wifi_manager.h"
-#include "gif_player/gif_player.h"
 
 void setup() {
   Serial.begin(115200);
@@ -26,8 +26,7 @@ void setup() {
   initButton();
   initWiFi();
   initChronos();
-
-  gifPlayerSetFile("test.qgif");
+  initDasaiMochi();
 }
 
 void loop() {

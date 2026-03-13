@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "clock.h"
-#include "gif_player/gif_player.h"
+#include "dasai_mochi.h"
 #include "weather.h"
 #include "wifi_manager.h"
 
@@ -49,7 +49,7 @@ void Router::loop() {
       break;
 
     case Route::DASAI_MOCHI:
-      gifPlayerTick();
+      loopDasaiMochi();
       break;
 
     default:
