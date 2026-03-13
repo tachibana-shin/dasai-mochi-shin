@@ -2,7 +2,7 @@
 #define FILESYSTEM_H
 
 #include <SD.h>
-#include <LittleFS.h>
+#include <SPIFFS.h>
 
 extern bool sdInitialized;
 extern SPIClass sdSPI;

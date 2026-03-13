@@ -1,7 +1,7 @@
 #include "filesystem.h"
 
-#include <LittleFS.h>
 #include <SD.h>
+#include <SPIFFS.h>
 
 #include "config.h"
 
@@ -28,20 +28,20 @@ fs::File getFile(const String& path, const char* mode, bool useSD) {
     file = SD.open(path, mode);
     if (!file) {
       Serial.println("Failed to open " + path + " on SD with mode " + mode);
-      return fs::File();   // 空の File を返す
+      return fs::File();  // 空の File を返す
     }
     return file;
   }
 
-  // SD を使わない、または SD が未初期化 → LittleFS を使う
-  if (!LittleFS.begin(true)) {
-    Serial.println("LittleFS mount failed");
+  // SD を使わない、または SD が未初期化 → SPIFFS を使う
+  if (!SPIFFS.begin(true)) {
+    Serial.println("SPIFFS mount failed");
     return fs::File();
   }
 
-  file = LittleFS.open(path, mode);
+  file = SPIFFS.open(path, mode);
   if (!file) {
-    Serial.println("Failed to open " + path + " on LittleFS with mode " + mode);
+    Serial.println("Failed to open " + path + " on SPIFFS with mode " + mode);
     return fs::File();
   }
 

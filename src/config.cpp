@@ -2,9 +2,9 @@
 
 #include <Arduino.h>
 #include <FS.h>
-#include <LittleFS.h>
 #include <SD.h>
 #include <SPI.h>
+#include <SPIFFS.h>
 
 #include "filesystem.h"
 
@@ -172,8 +172,8 @@ bool saveBootConfig() {
   config.toJsonBoot(doc);
 
   fs::File configFile = getFile("/boot_config.json", FILE_WRITE, false);
-  if (!LittleFS.begin(true)) {
-    Serial.println("LittleFS mount failed");
+  if (!SPIFFS.begin(true)) {
+    Serial.println("SPIFFS mount failed");
     return false;
   }
 
