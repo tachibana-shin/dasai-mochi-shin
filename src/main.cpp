@@ -8,6 +8,7 @@
 #include "clock.h"
 #include "config.h"
 #include "display.h"
+#include "filesystem.h"
 #include "time_utils.h"
 #include "weather.h"
 #include "wifi_manager.h"
@@ -16,6 +17,8 @@ void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
 
+  loadBootConfig();
+  initSD();
   loadConfig();
   initDisplay();
   initButton();
@@ -26,11 +29,11 @@ void setup() {
 void loop() {
   loopButton();
   loopChronos();
+  // display module only check auto on/off device not is function show route
+  loopDisplay();
 
   if (!isPortalActive) {
     loopWeather();
-
-    loopDisplay();
     loopClock();
   }
 

@@ -51,13 +51,17 @@ struct AppConfig {
   String configPath = "/config.json";
 
   void fromJson(const JsonObject& doc);
+  void fromJsonBoot(const JsonObject& doc);
   void toJson(JsonDocument& doc) const;
+  void toJsonBoot(JsonDocument& doc) const;
   void debugPrint() const;
 };
 
 extern AppConfig config;
 
 bool loadConfig();
+bool loadBootConfig();
 bool saveConfig();
+bool saveBootConfig();
 
 #endif
