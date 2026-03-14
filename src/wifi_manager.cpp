@@ -66,10 +66,7 @@ void loopWiFiManager() {
 
   Serial.println("[WiFi] All saved failed, opening WiFiManager");
 
-  u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
-  u8g2.drawStr(0, 20, "WiFi Setup");
-  sendBuffer();
+  showMessage(("WiFi Setup\nAP: " + config.wifiAPName).c_str(), 0);
 
   WiFiManager wm;
   wm.setClass("invert");
@@ -77,23 +74,12 @@ void loopWiFiManager() {
   wm.setConfigPortalTimeout(180);
   WiFi.setTxPower(WIFI_POWER_8_5dBm);
 
-  u8g2.setCursor(0, 40);
-  u8g2.print("AP: ");
-  u8g2.print(config.wifiAPName);
-  sendBuffer();
-
   bool ok = wm.autoConnect(config.wifiAPName.c_str());
   if (!ok) {
     Serial.println("[WiFiManager] Failed or timeout");
     showMessage("WiFi Failed", 1500);
   } else {
-    u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
-    u8g2.drawStr(0, 20, "WiFi connected:");
-    u8g2.drawStr(0, 40, wm.getWiFiSSID().c_str());
-    sendBuffer();
-
-    delay(1500);
+    showMessage(("WiFi connected:\n" + String(wm.getWiFiSSID())).c_str(), 1500);
   }
 
   // auto back

@@ -208,8 +208,8 @@ static void gifRenderFrame(uint8_t *frameData, uint16_t width,
     for (uint16_t i = 0; i < dataLen; i++) frameData[i] ^= 0xFF;
   }
 
-  uint16_t screenWidth = config.screenWidth;
-  uint16_t screenHeight = config.screenHeight;
+  uint16_t screenWidth = u8g2.getDisplayWidth();
+  uint16_t screenHeight = u8g2.getDisplayHeight();
 
   int16_t x = (screenWidth - width) / 2;
   int16_t y = (screenHeight - height) / 2;
