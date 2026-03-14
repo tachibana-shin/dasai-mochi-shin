@@ -1,10 +1,14 @@
 #include "button.h"
+#include "audio_manager.h"
 
 #include <Arduino.h>
 #include <WiFi.h>
 
+#include "alarm.h"
 #include "config.h"
 #include "display.h"
+#include "menu.h"
+#include "reminder.h"
 #include "router.h"
 #include "wifi_manager.h"
 
@@ -17,38 +21,47 @@ const unsigned long debounceDelay = 25;
 const unsigned long multiClickDelay = 500;
 
 static void handleClick() {
-  Serial.println("Clicked!");
-  config.brightness += 50;
-  if (config.brightness > 255) config.brightness = 255;
-  u8g2.setContrast(config.brightness);
-  saveConfig();
+  if (isAlarmActive()) {
+    stopAlarm();
+    return;
+  }
+  Serial.println("click");
+  playTapAudio();
+  if (isReminderActive()) {
+    confirmDrink();
+    return;
+  }
+  if (Router::current() == Route::SETTINGS) {
+    handleMenuClick();
+    return;
+  }
+  toggleScreen();
 }
 
 static void handleDoubleclick() {
-  Serial.println("Double clicked!");
-  config.brightness -= 50;
-  if (config.brightness < 5) config.brightness = 5;
-  u8g2.setContrast(config.brightness);
-  saveConfig();
+  playTapAudio();
+  if (Router::current() == Route::SETTINGS) {
+    handleMenuDoubleClick();
+    return;
+  }
+
+  Serial.println("double click");
+  if (Router::current() == Route::DASAI_MOCHI) {
+    Serial.println("DASAI_MOCHI");
+    Router::replace(Route::CLOCK);
+  } else if (Router::current() == Route::CLOCK) {
+    Serial.println("CLOCK");
+    Router::replace(Route::DASAI_MOCHI);
+  }
 }
 
 static void handleTripleClick() {
-  Serial.println("Triple clicked!");
-  config.wifiEnabled = !config.wifiEnabled;
-  saveConfig();
-
-  u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
-  if (config.wifiEnabled) {
-    showMessage("WiFi ON");
-
-    Router::push(Route::WIFI_MANAGER);
-  } else {
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_OFF);
-
-    showMessage("WiFi OFF");
+  playTapAudio();
+  if (Router::current() == Route::SETTINGS) {
+    handleMenuTripleClick();
+    return;
   }
+  Router::push(Route::SETTINGS);
 }
 
 void initButton() { pinMode(config.pinSensorTap, INPUT_PULLUP); }
@@ -84,7 +97,7 @@ void loopButton() {
     else if (buttonClicks == 3)
       handleTripleClick();
     else if (buttonClicks >= 4)
-      toggleScreen();
+      ESP.restart();  // Let's use 4 clicks for restart or something useful
     buttonClicks = 0;
   }
 }

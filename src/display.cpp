@@ -1,4 +1,5 @@
 #include "display.h"
+#include "audio_manager.h"
 
 #include <ChronosESP32.h>
 #include <Wifi.h>
@@ -28,6 +29,7 @@ void initDisplay() {
 void toggleScreen() {
   screenOn = !screenOn;
   u8g2.setPowerSave(!screenOn);
+  playLockscreenAudio();
   Serial.println(screenOn ? "Screen ON" : "Screen OFF");
 }
 
@@ -47,51 +49,56 @@ void showMessage(const char *msg, uint32_t timeout, uint8_t mode) {
 
     while (msg[i] != '\0') {
       char ch = msg[i];
+      bool forceNewlne = (ch == '\n');
+      
       if (ch == ' ' || ch == '\t' || ch == '\n') {
         lastSpace = (char *)&msg[i];
       }
 
-      int len = i - lineStart + 1;
+      int len = i - lineStart + (forceNewlne ? 0 : 1);
       char temp[64];
-      if (len < 64) {
+      int16_t segmentWidth = 0;
+      if (len > 0 && len < 64) {
         strncpy(temp, msg + lineStart, len);
         temp[len] = '\0';
-        int16_t segmentWidth = u8g2.getStrWidth(temp);
+        segmentWidth = u8g2.getStrWidth(temp);
+      }
 
-        if (segmentWidth > width) {
-          if (lastSpace != NULL && lastSpace > msg + lineStart) {
-            int lineLen = lastSpace - (msg + lineStart);
-            char *lineBuf = (char *)malloc(lineLen + 1);
-            if (lineBuf) {
-              strncpy(lineBuf, msg + lineStart, lineLen);
-              lineBuf[lineLen] = '\0';
-              u8g2.drawStr(0, y, lineBuf);
-              free(lineBuf);
-            }
-            lineStart = (lastSpace - msg) + 1;
-            i = lineStart;
-            lastSpace = NULL;
-          } else {
-            int lineLen = i - lineStart;
-            if (lineLen > 0) {
-              char *lineBuf = (char *)malloc(lineLen + 1);
-              if (lineBuf) {
-                strncpy(lineBuf, msg + lineStart, lineLen);
-                lineBuf[lineLen] = '\0';
-                u8g2.drawStr(0, y, lineBuf);
-                free(lineBuf);
-              }
-            }
-            lineStart = i;
-          }
-
-          y += lineHeight;
-          if (y + lineHeight > height) break;
+      if (forceNewlne || segmentWidth > width) {
+        int lineLen = 0;
+        if (forceNewlne) {
+          lineLen = i - lineStart;
+        } else if (lastSpace != NULL && lastSpace > msg + lineStart) {
+          lineLen = lastSpace - (msg + lineStart);
         } else {
-          i++;
+          lineLen = i - lineStart;
         }
+
+        if (lineLen > 0) {
+          char *lineBuf = (char *)malloc(lineLen + 1);
+          if (lineBuf) {
+            strncpy(lineBuf, msg + lineStart, lineLen);
+            lineBuf[lineLen] = '\0';
+            u8g2.drawStr(0, y, lineBuf);
+            free(lineBuf);
+          }
+        }
+
+        if (forceNewlne) {
+          lineStart = i + 1;
+          i = lineStart;
+        } else if (lastSpace != NULL && lastSpace > msg + lineStart) {
+          lineStart = (lastSpace - msg) + 1;
+          i = lineStart;
+        } else {
+          lineStart = i;
+        }
+        
+        lastSpace = NULL;
+        y += lineHeight;
+        if (y + lineHeight > height) break;
       } else {
-        break;
+        i++;
       }
     }
 

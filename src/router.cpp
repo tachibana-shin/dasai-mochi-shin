@@ -4,6 +4,8 @@
 
 #include "clock.h"
 #include "dasai_mochi.h"
+#include "display.h"
+#include "menu.h"
 #include "weather.h"
 #include "wifi_manager.h"
 
@@ -41,15 +43,23 @@ void Router::loop() {
   switch (current()) {
     case Route::CLOCK:
       loopWeather();
+      if (!screenOn) break;
       loopClock();
       break;
 
     case Route::WIFI_MANAGER:
+      if (!screenOn) break;
       loopWiFiManager();
       break;
 
     case Route::DASAI_MOCHI:
+      if (!screenOn) break;
       loopDasaiMochi();
+      break;
+
+    case Route::SETTINGS:
+      if (!screenOn) break;
+      loopSettings();
       break;
 
     default:

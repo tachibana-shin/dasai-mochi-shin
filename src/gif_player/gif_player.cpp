@@ -27,11 +27,12 @@ static uint32_t _dataOffset = 0;  // byte offset to first frame in file
 static String _currentFile;
 static String _requestedFile;
 static bool _fileChanged = false;
+static bool _requestedLoop = true;
 
 static const uint8_t *_memData = nullptr;
 static size_t _memSize = 0;
 static bool _playingFromMem = false;
-static bool _loop = true;
+static bool _loop = false;
 
 // ---------------------------------------------------------------------------
 // Private helpers
@@ -51,7 +52,7 @@ static void _freeFrameBuf() {
 }
 
 // Open a .qgif file, parse header + delays, prepare for frame streaming.
-static bool _openFile(const String &filepath) {
+static bool _openFile(const String &filepath, bool loop) {
   if (_file) _file.close();
   _playing = false;
   _freeFrameBuf();  // free old buffer
@@ -163,7 +164,7 @@ static bool _openFile(const String &filepath) {
   _height = height;
   _playing = true;
   _playingFromMem = false;
-  _loop = true;
+  _loop = loop;
   return true;
 }
 
@@ -186,9 +187,10 @@ static bool _readFrame(uint16_t idx) {
 // Public API
 // ---------------------------------------------------------------------------
 
-void gifPlayerSetFile(const String &filename) {
+void gifPlayerSetFile(const String &filename, bool loop) {
   if (gifPlayerMutex) xSemaphoreTake(gifPlayerMutex, portMAX_DELAY);
   _requestedFile = filename;
+  _requestedLoop = loop;
   _fileChanged = true;
   if (gifPlayerMutex) xSemaphoreGive(gifPlayerMutex);
 }
@@ -223,7 +225,7 @@ void gifPlayerTick() {
   if (_fileChanged) {
     _fileChanged = false;
     if (_requestedFile.length() > 0) {
-      _openFile(_requestedFile);
+      _openFile(_requestedFile, _requestedLoop);
     } else {
       if (_file) _file.close();
       _playing = false;

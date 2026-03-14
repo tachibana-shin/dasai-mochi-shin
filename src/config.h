@@ -14,6 +14,30 @@ struct WifiEntry {
   String pass;
 };
 
+struct AlarmEntry {
+  bool enabled = false;
+  int hour = 7;
+  int minute = 0;
+  uint8_t repeat = 0;  // Bitmask: 1=Mon, 2=Tue, 4=Wed, 8=Thu, 16=Fri, 32=Sat,
+                       // 64=Sun, 128=Once
+};
+
+struct DrinkConfig {
+  bool enabled = false;
+  int startHour = 8;
+  int endHour = 20;
+  int intervalMinutes = 60;
+  int durationSeconds = 30;
+  float dailyGoalLiters = 2.0;
+};
+
+struct AudioConfig {
+  bool alarmEnabled = true;
+  bool drinkEnabled = true;
+  bool notifyEnabled = true;
+  int volume = 12; // 0-21
+};
+
 struct AppConfig {
   int brightness = 150;
   bool wifiEnabled = true;
@@ -32,6 +56,10 @@ struct AppConfig {
   int pinSdMOSI = 3;
   int pinSdCLK = 2;
   int pinSdMISO = 1;
+
+  int pinAudioLRC = 5;
+  int pinAudioDIN = 7;
+  int pinAudioBCLK = 8;
 
   String wifiAPName = "Dasai Mochi Shin";
   String bluetoothName = "Mochi Shin";
@@ -58,7 +86,11 @@ struct AppConfig {
   bool screenNegative = false;
   uint16_t screenWidth = 128;
   uint16_t screenHeight = 64;
-  
+
+  std::vector<AlarmEntry> alarms;
+  DrinkConfig drink;
+  AudioConfig audio;
+
   void fromJson(const JsonObject& doc);
   void fromJsonBoot(const JsonObject& doc);
   void toJson(JsonDocument& doc) const;

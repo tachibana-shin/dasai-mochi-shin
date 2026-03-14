@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <esp_wifi.h>
 
+#include "alarm.h"
 #include "button.h"
 #include "chronos_manager.h"
 #include "clock.h"
@@ -10,10 +11,12 @@
 #include "dasai_mochi.h"
 #include "display.h"
 #include "filesystem.h"
+#include "reminder.h"
 #include "router.h"
 #include "time_utils.h"
 #include "weather.h"
 #include "wifi_manager.h"
+#include "audio_manager.h"
 
 void setup() {
   Serial.begin(115200);
@@ -27,6 +30,9 @@ void setup() {
   initButton();
   initChronos();
   initWiFi();
+  initReminder();
+  initAlarm();
+  initAudio();
   // boot image in initDasaiMochi
   initDasaiMochi();
 }
@@ -34,8 +40,11 @@ void setup() {
 void loop() {
   loopButton();
   loopChronos();
-  // display module only check auto on/off device not is function show route
+  // display module only check auto on/off device
   loopDisplay();
+  loopReminder();
+  loopAlarm();
+  loopAudio();
 
   // draw router
   Router::loop();

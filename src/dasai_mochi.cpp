@@ -5,6 +5,7 @@
 #include "assets/intro.h"
 #include "config.h"
 #include "display.h"
+#include "e_locale.h"
 #include "filesystem.h"
 #include "gif_player/gif_player.h"
 
@@ -15,7 +16,7 @@ void initDasaiMochi() {
 
   std::vector<String> qgifs = {};
 
-  for (String filename : readdir(config.homePath + "/DasaiMochi/Mochi")) {
+  for (String filename : readdir(config.homePath + "/Mochi")) {
     if (filename.endsWith(".qgif") || filename.endsWith(".qgif+")) {
       qgifs.push_back(filename);
     }
@@ -32,7 +33,7 @@ void initDasaiMochi() {
 
   if (qgifs.size() == 0) {
     Serial.println("No GIF files found");
-    showMessage("No GIF files found", 3000);
+    showMessage(L(MSG_NO_GIFS), 3000);
 
     // should empty gif then loop gif intro
 
@@ -45,11 +46,13 @@ void initDasaiMochi() {
 }
 
 void nextDasaiMochi() {
-  resetFrame();
   if (allQGifs.size() == 0) return;
 
-  gifPlayerSetFile(config.homePath + "/DasaiMochi/Mochi/" +
-                   allQGifs[random(0, allQGifs.size())]);
+  resetFrame();
+
+  String filename = allQGifs[random(0, allQGifs.size())];
+  Serial.println("Playing GIF: " + filename);
+  gifPlayerSetFile(config.homePath + "/Mochi/" + filename, false);
 }
 
 void loopDasaiMochi() {

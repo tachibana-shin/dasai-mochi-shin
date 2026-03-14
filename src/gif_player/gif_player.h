@@ -8,7 +8,7 @@
 
 // Request a file change (takes effect on next tick).
 // Pass an empty string to stop playback.
-void gifPlayerSetFile(const String &filename);
+void gifPlayerSetFile(const String &filename, bool loop = true);
 
 // Return the filename currently being played (empty if idle).
 String gifPlayerGetCurrentFile();

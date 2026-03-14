@@ -61,6 +61,17 @@ static void drawStatusBar() {
                   OFFSET_STATUSBAR_ICON_RIGHT_X + 12 + 7,
                   OFFSET_STATUSBAR_ICON_RIGHT_Y - 7);
   }
+
+  // Battery indicator
+  u8g2.setFont(u8g2_font_5x7_tf);
+  uint8_t battery = chronos.getPhoneBattery();
+  u8g2.setCursor(OFFSET_STATUSBAR_ICON_RIGHT_X - 30,
+                 OFFSET_STATUSBAR_ICON_RIGHT_Y - 1);
+  u8g2.printf("%d%%", battery);
+
+  u8g2.setFont(u8g2_font_open_iconic_embedded_1x_t);
+  u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X - 10,
+                 OFFSET_STATUSBAR_ICON_RIGHT_Y, 73);  // battery icon
 }
 
 static void drawMainClock() {

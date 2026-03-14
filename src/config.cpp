@@ -39,6 +39,36 @@ void AppConfig::fromJson(const JsonObject& doc) {
   screenWidth = doc["screenWidth"] | screenWidth;
   screenHeight = doc["screenHeight"] | screenHeight;
 
+  alarms.clear();
+  if (doc["alarms"].is<JsonArray>()) {
+    for (JsonObject a : doc["alarms"].as<JsonArray>()) {
+      AlarmEntry e;
+      e.enabled = a["enabled"] | false;
+      e.hour = a["hour"] | 0;
+      e.minute = a["minute"] | 0;
+      e.repeat = a["repeat"] | 0;
+      alarms.push_back(e);
+    }
+  }
+
+  JsonObject d = doc["drink"];
+  if (!d.isNull()) {
+    drink.enabled = d["enabled"] | drink.enabled;
+    drink.startHour = d["startHour"] | drink.startHour;
+    drink.endHour = d["endHour"] | drink.endHour;
+    drink.intervalMinutes = d["intervalMinutes"] | drink.intervalMinutes;
+    drink.durationSeconds = d["durationSeconds"] | drink.durationSeconds;
+    drink.dailyGoalLiters = d["dailyGoalLiters"] | drink.dailyGoalLiters;
+  }
+
+  JsonObject a = doc["audio"];
+  if (!a.isNull()) {
+    audio.alarmEnabled = a["alarmEnabled"] | audio.alarmEnabled;
+    audio.drinkEnabled = a["drinkEnabled"] | audio.drinkEnabled;
+    audio.notifyEnabled = a["notifyEnabled"] | audio.notifyEnabled;
+    audio.volume = a["volume"] | audio.volume;
+  }
+
   wifi.clear();
   if (doc["wifi"].is<JsonArray>()) {
     JsonArray wifiArray = doc["wifi"].as<JsonArray>();
@@ -60,6 +90,10 @@ void AppConfig::fromJsonBoot(const JsonObject& doc) {
   pinSdMOSI = doc["pinSdMOSI"] | pinSdMOSI;
   pinSdCLK = doc["pinSdCLK"] | pinSdCLK;
   pinSdMISO = doc["pinSdMISO"] | pinSdMISO;
+
+  pinAudioLRC = doc["pinAudioLRC"] | pinAudioLRC;
+  pinAudioDIN = doc["pinAudioDIN"] | pinAudioDIN;
+  pinAudioBCLK = doc["pinAudioBCLK"] | pinAudioBCLK;
 }
 
 void AppConfig::toJson(JsonDocument& doc) const {
@@ -91,6 +125,29 @@ void AppConfig::toJson(JsonDocument& doc) const {
   doc["screenWidth"] = screenWidth;
   doc["screenHeight"] = screenHeight;
 
+  JsonArray alarmArr = doc["alarms"].to<JsonArray>();
+  for (const auto& a : alarms) {
+    JsonObject obj = alarmArr.add<JsonObject>();
+    obj["enabled"] = a.enabled;
+    obj["hour"] = a.hour;
+    obj["minute"] = a.minute;
+    obj["repeat"] = a.repeat;
+  }
+
+  JsonObject dObj = doc["drink"].to<JsonObject>();
+  dObj["enabled"] = drink.enabled;
+  dObj["startHour"] = drink.startHour;
+  dObj["endHour"] = drink.endHour;
+  dObj["intervalMinutes"] = drink.intervalMinutes;
+  dObj["durationSeconds"] = drink.durationSeconds;
+  dObj["dailyGoalLiters"] = drink.dailyGoalLiters;
+
+  JsonObject aObj = doc["audio"].to<JsonObject>();
+  aObj["alarmEnabled"] = audio.alarmEnabled;
+  aObj["drinkEnabled"] = audio.drinkEnabled;
+  aObj["notifyEnabled"] = audio.notifyEnabled;
+  aObj["volume"] = audio.volume;
+
   JsonArray arr = doc["wifi"].to<JsonArray>();
   for (auto& e : wifi) {
     JsonObject w = arr.add<JsonObject>();
@@ -108,6 +165,10 @@ void AppConfig::toJsonBoot(JsonDocument& doc) const {
   doc["pinSdMOSI"] = pinSdMOSI;
   doc["pinSdCLK"] = pinSdCLK;
   doc["pinSdMISO"] = pinSdMISO;
+
+  doc["pinAudioLRC"] = pinAudioLRC;
+  doc["pinAudioDIN"] = pinAudioDIN;
+  doc["pinAudioBCLK"] = pinAudioBCLK;
 }
 
 void AppConfig::debugPrint() const {

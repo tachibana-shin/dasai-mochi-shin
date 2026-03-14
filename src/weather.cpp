@@ -2,6 +2,7 @@
 
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
+#include <WiFi.h>
 
 #include "config.h"
 #include "time_utils.h"
@@ -58,7 +59,7 @@ static void weatherTask(void* pvParameters) {
 static bool updateOnlineWeather() {
   if (weatherUpdating || WiFi.status() != WL_CONNECTED) return false;
 
-  xTaskCreatePinnedToCore(weatherTask, "weatherTask", 8192, NULL, 1, NULL, 1);
+  xTaskCreatePinnedToCore(weatherTask, "weatherTask", 8192, NULL, 1, NULL, 0);
   return true;
 }
 

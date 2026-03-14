@@ -9,6 +9,7 @@ enum class Route : uint8_t {
   CLOCK,
   WIFI_MANAGER,
   DASAI_MOCHI,
+  SETTINGS,
 };
 
 class Router {

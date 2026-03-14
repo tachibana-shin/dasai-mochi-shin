@@ -6,6 +6,7 @@
 
 #include "config.h"
 #include "display.h"
+#include "e_locale.h"
 #include "router.h"
 
 void initWiFi() {
@@ -19,15 +20,15 @@ void initWiFi() {
   esp_wifi_set_config(WIFI_IF_AP, &cfg);
 
   if (config.wifiEnabled) {
+    showMessage(("WiFi Setup\nAP: " + config.wifiAPName).c_str(), 0);
+
     WiFiManager wm;
     wm.setClass("invert");
-    wm.setTimeout(180);
-    wm.setConfigPortalTimeout(180);
+    wm.setConfigPortalTimeout(1);
+    wm.setConnectTimeout(10);
     WiFi.setTxPower(WIFI_POWER_8_5dBm);
 
-    wm.setConfigPortalBlocking(false);
     wm.autoConnect(config.wifiAPName.c_str());
-    wm.setConfigPortalBlocking(true);
   }
 }
 
@@ -70,16 +71,17 @@ void loopWiFiManager() {
 
   WiFiManager wm;
   wm.setClass("invert");
-  wm.setTimeout(180);
+  wm.setConnectTimeout(10);
   wm.setConfigPortalTimeout(180);
   WiFi.setTxPower(WIFI_POWER_8_5dBm);
 
   bool ok = wm.autoConnect(config.wifiAPName.c_str());
   if (!ok) {
     Serial.println("[WiFiManager] Failed or timeout");
-    showMessage("WiFi Failed", 1500);
+    showMessage(L(MSG_WIFI_FAILED), 1500);
   } else {
-    showMessage(("WiFi connected:\n" + String(wm.getWiFiSSID())).c_str(), 1500);
+    String msg = String(L(MSG_WIFI_CONNECTED)) + ":\n" + wm.getWiFiSSID();
+    showMessage(msg.c_str(), 1500);
   }
 
   // auto back
