@@ -10,6 +10,22 @@
 #include "gif_player/gif_player.h"
 
 static std::vector<String> allQGifs;
+static std::vector<size_t> playbackQueue;
+
+static void refillAndShuffleQueue() {
+  playbackQueue.clear();
+  if (allQGifs.empty()) return;
+  for (size_t i = 0; i < allQGifs.size(); i++) {
+    playbackQueue.push_back(i);
+  }
+  // Fisher-Yates shuffle
+  for (int i = playbackQueue.size() - 1; i > 0; i--) {
+    int j = random(0, i + 1);
+    size_t temp = playbackQueue[i];
+    playbackQueue[i] = playbackQueue[j];
+    playbackQueue[j] = temp;
+  }
+}
 
 void initDasaiMochi() {
   // load list file in folder /DasaiMochi/Mochi/*.{qgif+,qgif}
@@ -43,14 +59,22 @@ void initDasaiMochi() {
   }
 
   allQGifs = qgifs;
+  refillAndShuffleQueue();
 }
 
 void nextDasaiMochi() {
   if (allQGifs.size() == 0) return;
 
+  if (playbackQueue.empty()) {
+    refillAndShuffleQueue();
+  }
+
+  size_t index = playbackQueue.back();
+  playbackQueue.pop_back();
+
   resetFrame();
 
-  String filename = allQGifs[random(0, allQGifs.size())];
+  String filename = allQGifs[index];
   Serial.println("Playing GIF: " + filename);
   gifPlayerSetFile(config.homePath + "/Mochi/" + filename, false);
 }
