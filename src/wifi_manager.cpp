@@ -27,6 +27,8 @@ void initWiFi() {
     wm.setConfigPortalTimeout(1);
     wm.setConnectTimeout(10);
     WiFi.setTxPower(WIFI_POWER_8_5dBm);
+    WiFi.setSleep(true);
+    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
 
     wm.autoConnect(config.wifiAPName.c_str());
   }

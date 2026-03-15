@@ -21,6 +21,7 @@
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
+      setCpuFrequencyMhz(80);
 
   initFFS();
   loadBootConfig();
@@ -49,5 +50,12 @@ void loop() {
   // draw router
   Router::loop();
 
-  delay(10);
+  // Power optimization: Adjust performance based on activity
+  bool active = screenOn || isAudioPlaying();
+
+  if (active) {
+    delay(10);
+  } else {
+    delay(100);
+  }
 }

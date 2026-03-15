@@ -136,3 +136,7 @@ void setVolume(uint8_t volume) {
         out->SetGain((float)volume / 20.0f);
     }
 }
+
+bool isAudioPlaying() {
+    return isPlaying;
+}

@@ -12,5 +12,6 @@ void playNotifyAudio();
 void playTapAudio();
 void playLockscreenAudio();
 void setVolume(uint8_t volume);
+bool isAudioPlaying();
 
 #endif
