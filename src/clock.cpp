@@ -27,7 +27,7 @@
 #define OFFSET_WIND_X 110
 #define OFFSET_WIND_Y 42
 
-static void drawStatusBar() {
+void drawStatusBar() {
   u8g2.setFont(u8g2_font_6x10_tf);
 
   String dateStr;
@@ -97,7 +97,7 @@ static void drawStatusBar() {
                  OFFSET_STATUSBAR_ICON_RIGHT_Y, 73);  // battery icon
 }
 
-static void drawMainClock() {
+void drawMainClock() {
   u8g2.setFont(u8g2_font_logisoso24_tn);
   String hourStr, minuteStr, secStr, ampmStr;
 

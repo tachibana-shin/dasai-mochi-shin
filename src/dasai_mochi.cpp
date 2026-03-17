@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "assets/intro.h"
+#include "clock.h"
 #include "config.h"
 #include "display.h"
 #include "e_locale.h"
@@ -60,6 +61,7 @@ void initDasaiMochi() {
 
   allQGifs = qgifs;
   refillAndShuffleQueue();
+  lastClockShow = millis();
 }
 
 void nextDasaiMochi() {
@@ -79,7 +81,25 @@ void nextDasaiMochi() {
   gifPlayerSetFile(config.homePath + "/Mochi/" + filename, false);
 }
 
+static unsigned long lastClockShow = 0;
+const unsigned long clockShowInterval = 180000; // 3 minutes
+const unsigned long clockDuration = 5000;      // 5 seconds
+
 void loopDasaiMochi() {
+  unsigned long now = millis();
+
+  if (now - lastClockShow < clockDuration) {
+    u8g2.clearBuffer();
+    drawStatusBar();
+    drawMainClock();
+    sendBuffer();
+    return;
+  }
+
+  if (now - lastClockShow > clockShowInterval + clockDuration) {
+    lastClockShow = now;
+  }
+
   gifPlayerTick();
 
   if (isEndGif()) {
