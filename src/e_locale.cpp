@@ -16,7 +16,8 @@ const LocaleInfo locale_vi = {
         "Âm nhắc uống", "Âm thông báo", "Âm lượng", "Quay lại",
         "Đã tới giờ uống nước!", "Hãy uống 200ml nhé", "Nhấn 1 click để xác nhận",
         "Bỏ lỡ lần uống nước!", "Rất tốt! Đã ghi nhận.", "BÁO THỨC!", "Nhấn 1 click để dừng",
-        "WiFi lỗi", "WiFi đã kết nối", "Không tìm thấy file GIF", "Bật", "Tắt"
+        "WiFi lỗi", "WiFi đã kết nối", "Không tìm thấy file GIF", "Bật", "Tắt",
+        "Định dạng giờ", "Bắt đầu nhắc", "Kết thúc nhắc", "Chu kỳ nhắc", "Lượng nước mục tiêu", "Xóa lần bỏ lỡ"
     }
 };
 
@@ -34,7 +35,8 @@ const LocaleInfo locale_en = {
         "Drink Sound", "Notify Sound", "Volume", "Back",
         "It's time to drink water!", "Please drink 200ml", "Single click to confirm",
         "Missed drink reminder!", "Great! Recorded.", "ALARM!", "Single click to stop",
-        "WiFi Failed", "WiFi Connected", "No GIF files found", "ON", "OFF"
+        "WiFi Failed", "WiFi Connected", "No GIF files found", "ON", "OFF",
+        "Time Format", "Drink Start", "Drink End", "Drink Interval", "Daily Goal", "Clear Missed"
     }
 };
 

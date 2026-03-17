@@ -30,7 +30,10 @@ void initWiFi() {
     WiFi.setSleep(true);
     esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
 
-    wm.autoConnect(config.wifiAPName.c_str());
+    bool connected = wm.autoConnect(config.wifiAPName.c_str());
+    if (connected) {
+      WiFi.mode(WIFI_STA); // Disable AP mode to save power
+    }
   }
 }
 

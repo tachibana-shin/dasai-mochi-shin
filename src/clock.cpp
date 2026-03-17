@@ -8,6 +8,8 @@
 #include "weather.h"
 #include "weather_icons.h"
 
+#include "reminder.h"
+
 #define OFFSET_DATE_X 2
 #define OFFSET_DATE_Y 10
 #define OFFSET_STATUSBAR_ICON_RIGHT_X 100
@@ -60,6 +62,27 @@ static void drawStatusBar() {
                   OFFSET_STATUSBAR_ICON_RIGHT_Y,
                   OFFSET_STATUSBAR_ICON_RIGHT_X + 12 + 7,
                   OFFSET_STATUSBAR_ICON_RIGHT_Y - 7);
+  }
+
+  // Alarm icon
+  bool anyAlarm = false;
+  for (const auto& a : config.alarms) {
+    if (a.enabled) {
+      anyAlarm = true;
+      break;
+    }
+  }
+  if (anyAlarm) {
+    u8g2.setFont(u8g2_font_open_iconic_embedded_1x_t);
+    u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X - 45,
+                   OFFSET_STATUSBAR_ICON_RIGHT_Y, 65);
+  }
+
+  // Drink Reminder Missed icon (flashing)
+  if (getMissedReminders() > 0 && (millis() / 500) % 2 == 0) {
+    u8g2.setFont(u8g2_font_open_iconic_weather_1x_t);
+    u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X - 55,
+                   OFFSET_STATUSBAR_ICON_RIGHT_Y, 0x48); // drop icon
   }
 
   // Battery indicator

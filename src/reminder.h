@@ -8,5 +8,7 @@ void loopReminder();
 void recordDrinkEvent(String type, float amount = 0);
 bool isReminderActive();
 void confirmDrink();
+int getMissedReminders();
+void resetMissedReminders();
 
 #endif

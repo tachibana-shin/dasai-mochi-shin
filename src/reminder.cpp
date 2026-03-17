@@ -82,6 +82,7 @@ void loopReminder() {
   }
 
   if (reminderActive) {
+    showDrinkPopup();
     if (now - reminderStartTime >
         (unsigned long)config.drink.durationSeconds * 1000) {
       reminderActive = false;
@@ -103,4 +104,12 @@ void confirmDrink() {
   lastReminderTime = millis();
   recordDrinkEvent("drink", 200);  // Default 200ml
   showMessage(L(MSG_DRINK_GREAT), 2000);
+}
+
+int getMissedReminders() { return missedReminders; }
+void resetMissedReminders() {
+  if (missedReminders > 0) {
+    recordDrinkEvent("manual_fix_miss");
+    missedReminders = 0;
+  }
 }

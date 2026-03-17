@@ -59,6 +59,10 @@ static void setupMenuItems() {
   // Bluetooth
   MenuItem bt(L(MSG_BLUETOOTH), MenuItemType::TOGGLE);
   bt.getValue = []() {
+    extern ChronosESP32 chronos;
+    if (config.bluetoothEnabled && chronos.isConnected()) {
+      return String("ON (C)");
+    }
     return config.bluetoothEnabled ? String("ON") : String("OFF");
   };
   bt.onAction = []() {
@@ -292,6 +296,69 @@ static void setupMenuItems() {
     saveConfig();
   };
   menuItems.push_back(vol);
+
+  // Time Format (12h/24h)
+  MenuItem tForm(L(MSG_TIME_FORMAT), MenuItemType::TOGGLE);
+  tForm.getValue = []() { return config.is24Hour ? String("24H") : String("12H"); };
+  tForm.onAction = []() {
+    config.is24Hour = !config.is24Hour;
+    saveConfig();
+  };
+  menuItems.push_back(tForm);
+
+  // Drink Start Hour
+  MenuItem dStart(L(MSG_DRINK_START), MenuItemType::RANGE);
+  dStart.getValue = []() { return String(config.drink.startHour); };
+  dStart.onAction = []() {
+    config.drink.startHour = (config.drink.startHour + 1) % 24;
+    saveConfig();
+  };
+  menuItems.push_back(dStart);
+
+  // Drink End Hour
+  MenuItem dEnd(L(MSG_DRINK_END), MenuItemType::RANGE);
+  dEnd.getValue = []() { return String(config.drink.endHour); };
+  dEnd.onAction = []() {
+    config.drink.endHour = (config.drink.endHour + 1) % 24;
+    saveConfig();
+  };
+  menuItems.push_back(dEnd);
+
+  // Drink Interval
+  MenuItem dInt(L(MSG_DRINK_INTERVAL), MenuItemType::RANGE);
+  dInt.getValue = []() { return String(config.drink.intervalMinutes) + "m"; };
+  dInt.onAction = []() {
+    int mins = config.drink.intervalMinutes;
+    if (mins < 30) mins = 30;
+    else if (mins < 45) mins = 45;
+    else if (mins < 60) mins = 60;
+    else if (mins < 90) mins = 90;
+    else if (mins < 120) mins = 120;
+    else mins = 30;
+    config.drink.intervalMinutes = mins;
+    saveConfig();
+  };
+  menuItems.push_back(dInt);
+
+  // Drink Goal
+  MenuItem dGoal(L(MSG_DRINK_GOAL), MenuItemType::RANGE);
+  dGoal.getValue = []() { return String(config.drink.dailyGoalLiters, 1) + "L"; };
+  dGoal.onAction = []() {
+    float goal = config.drink.dailyGoalLiters;
+    goal += 0.5;
+    if (goal > 4.0) goal = 1.0;
+    config.drink.dailyGoalLiters = goal;
+    saveConfig();
+  };
+  menuItems.push_back(dGoal);
+
+  // Clear Missed
+  MenuItem dClear(L(MSG_CLEAR_MISSED), MenuItemType::ACTION);
+  dClear.getValue = []() { return String(getMissedReminders()); };
+  dClear.onAction = []() {
+    resetMissedReminders();
+  };
+  menuItems.push_back(dClear);
 }
 
 void initMenu() {
@@ -304,48 +371,47 @@ void loopSettings() {
   if (!initialized) initMenu();
 
   u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
+  u8g2.setFont(u8g2_font_6x10_tf); // Use a smaller, clear font
 
-  int visibleCount = 5;
-  int titleHeight = 15;
-  int itemHeight = 10;
-  
-  // Header
-  // u8g2.setFont(u8g2_font_6x12_tr);
-  // u8g2.drawStr(0, 10, "SETTINGS");
-  // u8g2.drawHLine(0, 11, 128);
-
+  int itemHeight = 12;
+  int visibleCount = 64 / itemHeight; // 64 / 12 = 5 items
   int scrollOffset = 0;
+
   if (selectedIndex >= visibleCount) {
     scrollOffset = selectedIndex - visibleCount + 1;
   }
+
+  // Draw scrollbar
+  int scrollBarHeight = 64;
+  int barSize = (visibleCount * scrollBarHeight) / menuItems.size();
+  if (barSize < 4) barSize = 4;
+  int barPos = (selectedIndex * (scrollBarHeight - barSize)) / (menuItems.size() - 1);
+  u8g2.drawVLine(126, 0, scrollBarHeight);
+  u8g2.drawBox(125, barPos, 3, barSize);
 
   for (int i = 0; i < visibleCount; i++) {
     int idx = i + scrollOffset;
     if (idx >= menuItems.size()) break;
 
-    int y = titleHeight + i * itemHeight;
+    int y = (i + 1) * itemHeight - 2;
     
     if (idx == selectedIndex) {
-      // Draw selection box
       u8g2.setDrawColor(1);
-      u8g2.drawBox(0, y - itemHeight + 2, 128, itemHeight);
-      u8g2.setDrawColor(0); // Invert text
+      u8g2.drawBox(0, i * itemHeight, 124, itemHeight);
+      u8g2.setDrawColor(0);
     } else {
       u8g2.setDrawColor(1);
     }
 
-    String label = menuItems[idx].label;
-    u8g2.drawUTF8(4, y, label.c_str());
+    u8g2.drawUTF8(2, y, menuItems[idx].label.c_str());
 
     if (menuItems[idx].getValue) {
       String val = menuItems[idx].getValue();
       int valWidth = u8g2.getStrWidth(val.c_str());
-      u8g2.drawUTF8(124 - valWidth, y, val.c_str());
+      u8g2.drawUTF8(122 - valWidth, y, val.c_str());
     }
   }
-  u8g2.setDrawColor(1); // Reset
-
+  u8g2.setDrawColor(1);
   sendBuffer();
 }
 
