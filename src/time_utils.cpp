@@ -52,4 +52,19 @@ void syncLocalFromChronos() {
   tv.tv_usec = 0;
 
   settimeofday(&tv, nullptr);
-}
+  }
+
+  int getHour24() {
+  struct tm timeinfo;
+  if (getLocalTime(&timeinfo)) {
+    return timeinfo.tm_hour;
+  }
+
+  int hour = chronos.getHour();
+  if (!chronos.is24Hour()) {
+    String ampm = chronos.getAmPmC(true);
+    if (ampm == "PM" && hour != 12) hour += 12;
+    if (ampm == "AM" && hour == 12) hour = 0;
+  }
+  return hour;
+  }

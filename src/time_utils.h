@@ -5,5 +5,6 @@
 
 bool syncNTP();
 void syncLocalFromChronos();
+int getHour24();
 
 #endif

@@ -139,14 +139,7 @@ static void checkScreenAutoOff() {
 
   if (onHour == -1 && offHour == -1) return;
 
-  int currentHour = -1;
-  struct tm timeinfo;
-
-  if (WiFi.status() == WL_CONNECTED && getLocalTime(&timeinfo)) {
-    currentHour = timeinfo.tm_hour;
-  } else {
-    currentHour = chronos.getHour();
-  }
+  int currentHour = getHour24();
 
   if (currentHour < 0 || currentHour > 23) return;
 
