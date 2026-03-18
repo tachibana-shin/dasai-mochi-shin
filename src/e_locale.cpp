@@ -5,8 +5,8 @@
 const LocaleInfo locale_vi = {
     "SA",
     "CH",
-    {"thg 1", "thg 2", "thg 3", "thg 4", "thg 5", "thg 6", "thg 7", "thg 8",
-     "thg 9", "thg 10", "thg 11", "thg 12"},
+    {"thg1", "thg2", "thg3", "thg4", "thg5", "thg6", "thg7", "thg8",
+     "thg9", "thg10", "thg11", "thg12"},
     {"CN", "T2", "T3", "T4", "T5", "T6", "T7"},
     {
         "SA", "CH", "Độ sáng", "WiFi", "Bluetooth", "Ngôn ngữ", "Múi giờ",

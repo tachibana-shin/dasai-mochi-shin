@@ -10,6 +10,7 @@
 #include "weather_icons.h"
 
 void drawStatusBar() {
+  u8g2->setFontMode(1); // Enable transparent mode
   u8g2->setFont(u8g2_font_6x10_tf);
 
   String dateStr;
