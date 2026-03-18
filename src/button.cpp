@@ -1,10 +1,10 @@
 #include "button.h"
-#include "audio_manager.h"
 
 #include <Arduino.h>
 #include <WiFi.h>
 
 #include "alarm.h"
+#include "audio_player.h"
 #include "config.h"
 #include "display.h"
 #include "menu.h"
@@ -21,12 +21,15 @@ const unsigned long debounceDelay = 25;
 const unsigned long multiClickDelay = 500;
 
 static void handleClick() {
+  audioPlayDefault(SOUND_CLICK);
+  if (isShowingMessage()) {
+    clearMessage();
+  }
   if (isAlarmActive()) {
     stopAlarm();
     return;
   }
   Serial.println("click");
-  playTapAudio();
   if (isReminderActive()) {
     confirmDrink();
     return;
@@ -39,7 +42,7 @@ static void handleClick() {
 }
 
 static void handleDoubleclick() {
-  playTapAudio();
+  audioPlayDefault(SOUND_CLICK);
   if (Router::current() == Route::SETTINGS) {
     handleMenuDoubleClick();
     return;
@@ -56,7 +59,7 @@ static void handleDoubleclick() {
 }
 
 static void handleTripleClick() {
-  playTapAudio();
+  audioPlayDefault(SOUND_CLICK);
   if (Router::current() == Route::SETTINGS) {
     handleMenuTripleClick();
     return;
@@ -78,6 +81,7 @@ void loopButton() {
     if (rawState != debouncedState) {
       debouncedState = rawState;
       if (debouncedState == HIGH) {
+        resetScreenTimer();
         if (!screenOn) {
           toggleScreen();
           buttonClicks = 0;

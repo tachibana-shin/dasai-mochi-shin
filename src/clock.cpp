@@ -5,30 +5,12 @@
 #include "config.h"
 #include "display.h"
 #include "e_locale.h"
+#include "reminder.h"
 #include "weather.h"
 #include "weather_icons.h"
 
-#include "reminder.h"
-
-#define OFFSET_DATE_X 2
-#define OFFSET_DATE_Y 10
-#define OFFSET_STATUSBAR_ICON_RIGHT_X 100
-#define OFFSET_STATUSBAR_ICON_RIGHT_Y 10
-#define OFFSET_TIME_X 2
-#define OFFSET_TIME_Y 45
-#define OFFSET_SEC_X 72
-#define OFFSET_SEC_Y 35
-#define OFFSET_WEATHER_ICON_X 90
-#define OFFSET_WEATHER_ICON_Y 20
-#define OFFSET_WEATHER_TEMP_X 90
-#define OFFSET_WEATHER_TEMP_Y 55
-#define OFFSET_HUM_X 110
-#define OFFSET_HUM_Y 33
-#define OFFSET_WIND_X 110
-#define OFFSET_WIND_Y 42
-
 void drawStatusBar() {
-  u8g2.setFont(u8g2_font_6x10_tf);
+  u8g2->setFont(u8g2_font_6x10_tf);
 
   String dateStr;
   const LocaleInfo* loc = getActiveLocale();
@@ -40,31 +22,60 @@ void drawStatusBar() {
              timeinfo.tm_mday, loc->months[timeinfo.tm_mon]);
     dateStr = String(buffer);
   }
-  u8g2.drawStr(OFFSET_DATE_X, OFFSET_DATE_Y, dateStr.c_str());
+  u8g2->drawStr(vw(1.5), vh(15.6), dateStr.c_str());
 
-  // Bluetooth icon
-  u8g2.setFont(u8g2_font_open_iconic_embedded_1x_t);
-  u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X, OFFSET_STATUSBAR_ICON_RIGHT_Y,
-                 74);
-  extern ChronosESP32 chronos;
-  if (!config.bluetoothEnabled || !chronos.isConnected()) {
-    u8g2.drawLine(OFFSET_STATUSBAR_ICON_RIGHT_X, OFFSET_STATUSBAR_ICON_RIGHT_Y,
-                  OFFSET_STATUSBAR_ICON_RIGHT_X + 7,
-                  OFFSET_STATUSBAR_ICON_RIGHT_Y - 7);
+  int xPos = vw(100);
+  int yPos = vh(15.6);
+  int spacing = rem(0.4); // Spacing between items
+
+  // 1. Battery Icon & Text
+  u8g2->setFont(u8g2_font_open_iconic_embedded_1x_t);
+  xPos -= 10; // Battery icon width approx 10
+  u8g2->drawGlyph(xPos, yPos, 73); // battery icon
+  
+  u8g2->setFont(u8g2_font_5x7_tf);
+  uint8_t battery = chronos.getPhoneBattery();
+  char battBuf[8];
+  sprintf(battBuf, "%d%%", battery);
+  int battWidth = u8g2->getStrWidth(battBuf);
+  xPos -= (battWidth + 2);
+  u8g2->drawStr(xPos, yPos - 1, battBuf);
+  xPos -= spacing;
+
+  // 2. WiFi Icon
+  bool wifiOk = config.wifiEnabled && WiFi.status() == WL_CONNECTED;
+  u8g2->setFont(u8g2_font_open_iconic_www_1x_t);
+  xPos -= 10;
+  u8g2->drawGlyph(xPos, yPos, 0x0051);
+  if (!wifiOk) {
+    u8g2->drawLine(xPos - 1, yPos, xPos + 9, yPos - 8);
+  }
+  xPos -= spacing;
+
+  // 3. Bluetooth Icon
+  bool bleOk = config.bluetoothEnabled && chronos.isConnected();
+  u8g2->setFont(u8g2_font_open_iconic_embedded_1x_t);
+  xPos -= 10;
+  u8g2->drawGlyph(xPos, yPos, 74);
+  if (!bleOk) {
+    u8g2->drawLine(xPos - 1, yPos, xPos + 9, yPos - 8);
+  }
+  xPos -= spacing;
+
+  // 4. Drink Reminder Icon (Drop) - only if missed > 0
+  if (getMissedReminders() > 0) {
+    bool flash = (millis() / 500) % 2 == 0;
+    if (flash) {
+      u8g2->setFont(u8g2_font_open_iconic_weather_1x_t);
+      xPos -= 10;
+      u8g2->drawGlyph(xPos, yPos, 0x48); // drop icon
+      xPos -= spacing;
+    } else {
+      xPos -= (10 + spacing); // Keep space even when hidden during flash
+    }
   }
 
-  // WiFi icon
-  u8g2.setFont(u8g2_font_open_iconic_www_1x_t);
-  u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X + 10,
-                 OFFSET_STATUSBAR_ICON_RIGHT_Y, 0x0051);
-  if (!config.wifiEnabled || WiFi.status() != WL_CONNECTED) {
-    u8g2.drawLine(OFFSET_STATUSBAR_ICON_RIGHT_X + 10 + 1,
-                  OFFSET_STATUSBAR_ICON_RIGHT_Y,
-                  OFFSET_STATUSBAR_ICON_RIGHT_X + 12 + 7,
-                  OFFSET_STATUSBAR_ICON_RIGHT_Y - 7);
-  }
-
-  // Alarm icon
+  // 5. Alarm Icon
   bool anyAlarm = false;
   for (const auto& a : config.alarms) {
     if (a.enabled) {
@@ -73,32 +84,15 @@ void drawStatusBar() {
     }
   }
   if (anyAlarm) {
-    u8g2.setFont(u8g2_font_open_iconic_embedded_1x_t);
-    u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X - 45,
-                   OFFSET_STATUSBAR_ICON_RIGHT_Y, 65);
+    u8g2->setFont(u8g2_font_open_iconic_embedded_1x_t);
+    xPos -= 10;
+    u8g2->drawGlyph(xPos, yPos, 65);
+    xPos -= spacing;
   }
-
-  // Drink Reminder Missed icon (flashing)
-  if (getMissedReminders() > 0 && (millis() / 500) % 2 == 0) {
-    u8g2.setFont(u8g2_font_open_iconic_weather_1x_t);
-    u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X - 55,
-                   OFFSET_STATUSBAR_ICON_RIGHT_Y, 0x48); // drop icon
-  }
-
-  // Battery indicator
-  u8g2.setFont(u8g2_font_5x7_tf);
-  uint8_t battery = chronos.getPhoneBattery();
-  u8g2.setCursor(OFFSET_STATUSBAR_ICON_RIGHT_X - 30,
-                 OFFSET_STATUSBAR_ICON_RIGHT_Y - 1);
-  u8g2.printf("%d%%", battery);
-
-  u8g2.setFont(u8g2_font_open_iconic_embedded_1x_t);
-  u8g2.drawGlyph(OFFSET_STATUSBAR_ICON_RIGHT_X - 10,
-                 OFFSET_STATUSBAR_ICON_RIGHT_Y, 73);  // battery icon
 }
 
 void drawMainClock() {
-  u8g2.setFont(u8g2_font_logisoso24_tn);
+  u8g2->setFont(u8g2_font_logisoso24_tn);
   String hourStr, minuteStr, secStr, ampmStr;
 
   struct tm timeinfo;
@@ -130,11 +124,11 @@ void drawMainClock() {
     ampmStr = loc->pm;
 
   String timeStr = hourStr + ":" + minuteStr;
-  u8g2.drawStr(OFFSET_TIME_X, OFFSET_TIME_Y, timeStr.c_str());
+  u8g2->drawStr(vw(1.5), vh(70.3), timeStr.c_str());
 
-  u8g2.setFont(u8g2_font_6x10_tf);
-  u8g2.drawStr(OFFSET_SEC_X, OFFSET_SEC_Y, secStr.c_str());
-  u8g2.drawStr(OFFSET_SEC_X, OFFSET_SEC_Y + 10, ampmStr.c_str());
+  u8g2->setFont(u8g2_font_6x10_tf);
+  u8g2->drawStr(vw(56.2), vh(54.6), secStr.c_str());
+  u8g2->drawStr(vw(56.2), vh(54.6) + 10, ampmStr.c_str());
 
   // Weather icon
   uint8_t iconGlyph = 0x41;  // default cloudy
@@ -164,9 +158,9 @@ void drawMainClock() {
   else if (weatherCode >= 95)
     icon = icon_thunder_16x16;
 
-  u8g2.drawXBM(OFFSET_WEATHER_ICON_X, OFFSET_WEATHER_ICON_Y, 16, 16, icon);
+  u8g2->drawXBM(vw(70.3), vh(31.2), 16, 16, icon);
 
-  u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
+  u8g2->setFont(u8g2_font_unifont_t_vietnamese1);
   String tempStr = "??";
   int humidity = -1;
   float wind = -1;
@@ -183,23 +177,23 @@ void drawMainClock() {
   }
 
   if (tempStr != "??") tempStr += "C";
-  u8g2.drawStr(OFFSET_WEATHER_TEMP_X, OFFSET_WEATHER_TEMP_Y, tempStr.c_str());
+  u8g2->drawStr(vw(70.3), vh(85.9), tempStr.c_str());
 
   // Sunrise / Sunset
   if (onlineSunrise != "" && onlineSunset != "") {
-    u8g2.setFont(u8g2_font_open_iconic_weather_1x_t);
-    u8g2.drawGlyph(2, 63, 0x45);  // sunrise
-    u8g2.setFont(u8g2_font_5x7_tf);
-    u8g2.drawStr(12, 63, onlineSunrise.c_str());
+    u8g2->setFont(u8g2_font_open_iconic_weather_1x_t);
+    u8g2->drawGlyph(vw(1.5), vh(98.4), 0x45);  // sunrise
+    u8g2->setFont(u8g2_font_5x7_tf);
+    u8g2->drawStr(vw(9.3), vh(98.4), onlineSunrise.c_str());
 
-    u8g2.setFont(u8g2_font_open_iconic_weather_1x_t);
-    u8g2.drawGlyph(65, 63, 0x44);  // sunset
-    u8g2.setFont(u8g2_font_5x7_tf);
-    u8g2.drawStr(75, 63, onlineSunset.c_str());
+    u8g2->setFont(u8g2_font_open_iconic_weather_1x_t);
+    u8g2->drawGlyph(vw(50.7), vh(98.4), 0x44);  // sunset
+    u8g2->setFont(u8g2_font_5x7_tf);
+    u8g2->drawStr(vw(58.5), vh(98.4), onlineSunset.c_str());
   }
 
   // Humidity and Wind
-  u8g2.setFont(u8g2_font_5x7_tf);
+  u8g2->setFont(u8g2_font_5x7_tf);
   String humStr = "H";
   String windStr = "W";
 
@@ -213,12 +207,12 @@ void drawMainClock() {
   else
     windStr += "??";
 
-  u8g2.drawStr(OFFSET_HUM_X, OFFSET_HUM_Y, humStr.c_str());
-  u8g2.drawStr(OFFSET_WIND_X, OFFSET_WIND_Y, windStr.c_str());
+  u8g2->drawStr(vw(85.9), vh(51.5), humStr.c_str());
+  u8g2->drawStr(vw(85.9), vh(65.6), windStr.c_str());
 }
 
 void loopClock() {
-  u8g2.clearBuffer();
+  u8g2->clearBuffer();
   drawStatusBar();
   drawMainClock();
   sendBuffer();

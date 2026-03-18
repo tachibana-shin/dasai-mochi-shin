@@ -33,6 +33,8 @@ void AppConfig::fromJson(const JsonObject& doc) {
 
   mochiSpeedDivisor = doc["mochiSpeedDivisor"] | mochiSpeedDivisor;
   mochiNegative = doc["mochiNegative"] | mochiNegative;
+  mochiClockInterval = doc["mochiClockInterval"] | mochiClockInterval;
+  mochiClockDuration = doc["mochiClockDuration"] | mochiClockDuration;
 
   screenFlipMode = doc["screenFlipMode"] | screenFlipMode;
   screenNegative = doc["screenNegative"] | screenNegative;
@@ -61,13 +63,18 @@ void AppConfig::fromJson(const JsonObject& doc) {
     drink.dailyGoalLiters = d["dailyGoalLiters"] | drink.dailyGoalLiters;
   }
 
-  JsonObject a = doc["audio"];
-  if (!a.isNull()) {
-    audio.alarmEnabled = a["alarmEnabled"] | audio.alarmEnabled;
-    audio.drinkEnabled = a["drinkEnabled"] | audio.drinkEnabled;
-    audio.notifyEnabled = a["notifyEnabled"] | audio.notifyEnabled;
-    audio.volume = a["volume"] | audio.volume;
+  JsonObject audioDoc = doc["audio"];
+  if (!audioDoc.isNull()) {
+    audio.alarmEnabled = audioDoc["alarmEnabled"] | audio.alarmEnabled;
+    audio.drinkEnabled = audioDoc["drinkEnabled"] | audio.drinkEnabled;
+    audio.notifyEnabled = audioDoc["notifyEnabled"] | audio.notifyEnabled;
+    audio.volume = audioDoc["volume"] | audio.volume;
   }
+
+  customClickSoundPath = doc["customClickSoundPath"] | customClickSoundPath;
+  customDrinkSoundPath = doc["customDrinkSoundPath"] | customDrinkSoundPath;
+  customAlarmSoundPath = doc["customAlarmSoundPath"] | customAlarmSoundPath;
+  customNotifySoundPath = doc["customNotifySoundPath"] | customNotifySoundPath;
 
   wifi.clear();
   if (doc["wifi"].is<JsonArray>()) {
@@ -142,11 +149,16 @@ void AppConfig::toJson(JsonDocument& doc) const {
   dObj["durationSeconds"] = drink.durationSeconds;
   dObj["dailyGoalLiters"] = drink.dailyGoalLiters;
 
-  JsonObject aObj = doc["audio"].to<JsonObject>();
-  aObj["alarmEnabled"] = audio.alarmEnabled;
-  aObj["drinkEnabled"] = audio.drinkEnabled;
-  aObj["notifyEnabled"] = audio.notifyEnabled;
-  aObj["volume"] = audio.volume;
+  JsonObject audioObj = doc["audio"].to<JsonObject>();
+  audioObj["alarmEnabled"] = audio.alarmEnabled;
+  audioObj["drinkEnabled"] = audio.drinkEnabled;
+  audioObj["notifyEnabled"] = audio.notifyEnabled;
+  audioObj["volume"] = audio.volume;
+
+  doc["customClickSoundPath"] = customClickSoundPath;
+  doc["customDrinkSoundPath"] = customDrinkSoundPath;
+  doc["customAlarmSoundPath"] = customAlarmSoundPath;
+  doc["customNotifySoundPath"] = customNotifySoundPath;
 
   JsonArray arr = doc["wifi"].to<JsonArray>();
   for (auto& e : wifi) {

@@ -1,6 +1,6 @@
 #include "alarm.h"
 
-#include "audio_manager.h"
+#include "audio_player.h"
 #include "config.h"
 #include "display.h"
 #include "e_locale.h"
@@ -28,6 +28,9 @@ void loopAlarm() {
 
   if (alarmActive) {
     showAlarmUI();
+    if (!isAudioPlaying()) {
+      audioPlayDefault(SOUND_ALARM);
+    }
     return;
   }
 
@@ -67,7 +70,6 @@ void loopAlarm() {
         alarmActive = true;
         activeAlarmIndex = i;
         if (!screenOn) toggleScreen();
-        playAlarmAudio();
         break;
       }
     }
@@ -79,6 +81,7 @@ bool isAlarmActive() { return alarmActive; }
 void stopAlarm() {
   alarmActive = false;
   activeAlarmIndex = -1;
+  audioStop();
   // If it was a "once" alarm, we should disable it
   // But we don't have the repeat logic implemented yet
 }

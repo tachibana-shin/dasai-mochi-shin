@@ -2,7 +2,6 @@
 
 #include <ChronosESP32.h>
 
-#include "audio_manager.h"
 #include "config.h"
 #include "display.h"
 #include "time_utils.h"
@@ -18,7 +17,6 @@ void initChronos() {
     String msg =
         String(notify.app) + "\n" + notify.title + "\n" + notify.message;
     showMessage(msg.c_str(), 5000, SHOW_WRAP);
-    playNotifyAudio();
   });
   chronos.setConfigurationCallback(
       [](Config _, uint32_t timestamp, uint32_t timezone) {

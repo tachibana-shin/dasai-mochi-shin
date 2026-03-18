@@ -5,7 +5,8 @@
 #include <vector>
 
 #include "alarm.h"
-#include "audio_manager.h"
+#include "audio_player.h"
+#include "chronos_manager.h"
 #include "config.h"
 #include "display.h"
 #include "e_locale.h"
@@ -31,7 +32,7 @@ static void setupMenuItems() {
     config.brightness = (config.brightness + 50) % 300;
     if (config.brightness < 5) config.brightness = 5;
     if (config.brightness > 255) config.brightness = 255;
-    u8g2.setContrast(config.brightness);
+    u8g2->setContrast(config.brightness);
     saveConfig();
   };
   menuItems.push_back(brightness);
@@ -59,7 +60,6 @@ static void setupMenuItems() {
   // Bluetooth
   MenuItem bt(L(MSG_BLUETOOTH), MenuItemType::TOGGLE);
   bt.getValue = []() {
-    extern ChronosESP32 chronos;
     if (config.bluetoothEnabled && chronos.isConnected()) {
       return String("ON (C)");
     }
@@ -254,57 +254,43 @@ static void setupMenuItems() {
   };
   menuItems.push_back(mNeg);
 
-  // Alarm Sound
-  MenuItem aSound(L(MSG_ALARM_SOUND), MenuItemType::TOGGLE);
-  aSound.getValue = []() {
-    return config.audio.alarmEnabled ? String("ON") : String("OFF");
-  };
-  aSound.onAction = []() {
-    config.audio.alarmEnabled = !config.audio.alarmEnabled;
-    saveConfig();
-  };
-  menuItems.push_back(aSound);
-
-  // Drink Sound
-  MenuItem dSound(L(MSG_DRINK_SOUND), MenuItemType::TOGGLE);
-  dSound.getValue = []() {
-    return config.audio.drinkEnabled ? String("ON") : String("OFF");
-  };
-  dSound.onAction = []() {
-    config.audio.drinkEnabled = !config.audio.drinkEnabled;
-    saveConfig();
-  };
-  menuItems.push_back(dSound);
-
-  // Notify Sound
-  MenuItem nSound(L(MSG_NOTIFY_SOUND), MenuItemType::TOGGLE);
-  nSound.getValue = []() {
-    return config.audio.notifyEnabled ? String("ON") : String("OFF");
-  };
-  nSound.onAction = []() {
-    config.audio.notifyEnabled = !config.audio.notifyEnabled;
-    saveConfig();
-  };
-  menuItems.push_back(nSound);
-
-  // Volume
-  MenuItem vol(L(MSG_VOLUME), MenuItemType::RANGE);
-  vol.getValue = []() { return String(config.audio.volume); };
-  vol.onAction = []() {
-    config.audio.volume = (config.audio.volume + 3) % 22;
-    setVolume(config.audio.volume);
-    saveConfig();
-  };
-  menuItems.push_back(vol);
-
   // Time Format (12h/24h)
   MenuItem tForm(L(MSG_TIME_FORMAT), MenuItemType::TOGGLE);
-  tForm.getValue = []() { return config.is24Hour ? String("24H") : String("12H"); };
+  tForm.getValue = []() {
+    return config.is24Hour ? String("24H") : String("12H");
+  };
   tForm.onAction = []() {
     config.is24Hour = !config.is24Hour;
     saveConfig();
   };
   menuItems.push_back(tForm);
+
+  // Mochi Clock Interval
+  MenuItem mClockInt(L(MSG_MOCHI_CLK_INT), MenuItemType::RANGE);
+  mClockInt.getValue = []() {
+    return String(config.mochiClockInterval / 60000) + "m";
+  };
+  mClockInt.onAction = []() {
+    int mins = config.mochiClockInterval / 60000;
+    mins = (mins % 30) + 1; // 1 to 30 mins
+    config.mochiClockInterval = (unsigned long)mins * 60000;
+    saveConfig();
+  };
+  menuItems.push_back(mClockInt);
+
+  // Mochi Clock Duration
+  MenuItem mClockDur(L(MSG_MOCHI_CLK_DUR), MenuItemType::RANGE);
+  mClockDur.getValue = []() {
+    return String(config.mochiClockDuration / 1000) + "s";
+  };
+  mClockDur.onAction = []() {
+    int secs = config.mochiClockDuration / 1000;
+    secs = (secs % 30) + 5; // 5 to 30 secs
+    if (secs > 30) secs = 5;
+    config.mochiClockDuration = (unsigned long)secs * 1000;
+    saveConfig();
+  };
+  menuItems.push_back(mClockDur);
 
   // Drink Start Hour
   MenuItem dStart(L(MSG_DRINK_START), MenuItemType::RANGE);
@@ -329,12 +315,18 @@ static void setupMenuItems() {
   dInt.getValue = []() { return String(config.drink.intervalMinutes) + "m"; };
   dInt.onAction = []() {
     int mins = config.drink.intervalMinutes;
-    if (mins < 30) mins = 30;
-    else if (mins < 45) mins = 45;
-    else if (mins < 60) mins = 60;
-    else if (mins < 90) mins = 90;
-    else if (mins < 120) mins = 120;
-    else mins = 30;
+    if (mins < 30)
+      mins = 30;
+    else if (mins < 45)
+      mins = 45;
+    else if (mins < 60)
+      mins = 60;
+    else if (mins < 90)
+      mins = 90;
+    else if (mins < 120)
+      mins = 120;
+    else
+      mins = 30;
     config.drink.intervalMinutes = mins;
     saveConfig();
   };
@@ -342,7 +334,9 @@ static void setupMenuItems() {
 
   // Drink Goal
   MenuItem dGoal(L(MSG_DRINK_GOAL), MenuItemType::RANGE);
-  dGoal.getValue = []() { return String(config.drink.dailyGoalLiters, 1) + "L"; };
+  dGoal.getValue = []() {
+    return String(config.drink.dailyGoalLiters, 1) + "L";
+  };
   dGoal.onAction = []() {
     float goal = config.drink.dailyGoalLiters;
     goal += 0.5;
@@ -355,9 +349,7 @@ static void setupMenuItems() {
   // Clear Missed
   MenuItem dClear(L(MSG_CLEAR_MISSED), MenuItemType::ACTION);
   dClear.getValue = []() { return String(getMissedReminders()); };
-  dClear.onAction = []() {
-    resetMissedReminders();
-  };
+  dClear.onAction = []() { resetMissedReminders(); };
   menuItems.push_back(dClear);
 }
 
@@ -370,11 +362,15 @@ void initMenu() {
 void loopSettings() {
   if (!initialized) initMenu();
 
-  u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_6x10_tf); // Use a smaller, clear font
+  u8g2->clearBuffer();
+  u8g2->setFont(u8g2_font_unifont_t_vietnamese1);
 
-  int itemHeight = 12;
-  int visibleCount = 64 / itemHeight; // 64 / 12 = 5 items
+  int displayW = u8g2->getDisplayWidth();
+  int displayH = u8g2->getDisplayHeight();
+
+  int itemHeight = vh(25); // 16px if height is 64px
+  if (itemHeight < 12) itemHeight = 12;
+  int visibleCount = displayH / itemHeight; 
   int scrollOffset = 0;
 
   if (selectedIndex >= visibleCount) {
@@ -382,44 +378,95 @@ void loopSettings() {
   }
 
   // Draw scrollbar
-  int scrollBarHeight = 64;
+  int scrollBarHeight = displayH;
+  int barWidth = rem(0.4);
+  if (barWidth < 3) barWidth = 3;
+  int barX = displayW - barWidth;
+  
   int barSize = (visibleCount * scrollBarHeight) / menuItems.size();
   if (barSize < 4) barSize = 4;
-  int barPos = (selectedIndex * (scrollBarHeight - barSize)) / (menuItems.size() - 1);
-  u8g2.drawVLine(126, 0, scrollBarHeight);
-  u8g2.drawBox(125, barPos, 3, barSize);
+  int barPos =
+      (selectedIndex * (scrollBarHeight - barSize)) / (menuItems.size() - 1);
+  
+  u8g2->drawVLine(displayW - 2, 0, scrollBarHeight);
+  u8g2->drawBox(barX, barPos, barWidth, barSize);
+
+  int usableWidth = barX - 2;
 
   for (int i = 0; i < visibleCount; i++) {
     int idx = i + scrollOffset;
     if (idx >= menuItems.size()) break;
 
-    int y = (i + 1) * itemHeight - 2;
-    
+    int y = (i + 1) * itemHeight - rem(0.4);
+
     if (idx == selectedIndex) {
-      u8g2.setDrawColor(1);
-      u8g2.drawBox(0, i * itemHeight, 124, itemHeight);
-      u8g2.setDrawColor(0);
+      u8g2->setDrawColor(1);
+      u8g2->drawBox(0, i * itemHeight, usableWidth + 1, itemHeight);
+      u8g2->setDrawColor(0);
     } else {
-      u8g2.setDrawColor(1);
+      u8g2->setDrawColor(1);
     }
 
-    u8g2.drawUTF8(2, y, menuItems[idx].label.c_str());
-
+    // --- Logic calculating widths ---
+    String val = "";
+    int realValWidth = 0;
     if (menuItems[idx].getValue) {
-      String val = menuItems[idx].getValue();
-      int valWidth = u8g2.getStrWidth(val.c_str());
-      u8g2.drawUTF8(122 - valWidth, y, val.c_str());
+      val = menuItems[idx].getValue();
+      realValWidth = u8g2->getUTF8Width(val.c_str());
+    }
+
+    int maxValWidth = vw(37.5); // Exact 48px on 128px screen
+    int displayValWidth = (realValWidth > maxValWidth) ? maxValWidth : realValWidth;
+    int availableLabelWidth = usableWidth - (displayValWidth > 0 ? (displayValWidth + rem(0.8)) : 0) - rem(0.5);
+    int labelWidth = u8g2->getUTF8Width(menuItems[idx].label.c_str());
+
+    // --- Draw Label ---
+    u8g2->setClipWindow(rem(0.25), i * itemHeight, availableLabelWidth + rem(0.25), (i + 1) * itemHeight);
+    if (idx == selectedIndex && labelWidth > availableLabelWidth) {
+      int scrollArea = labelWidth + rem(4);
+      int offset = (millis() / 40) % scrollArea;
+      u8g2->drawUTF8(rem(0.25) - offset, y, menuItems[idx].label.c_str());
+      if (offset > (scrollArea - availableLabelWidth)) {
+        u8g2->drawUTF8(rem(0.3) - offset + scrollArea, y, menuItems[idx].label.c_str());
+      }
+    } else {
+      u8g2->drawUTF8(rem(0.3), y, menuItems[idx].label.c_str());
+    }
+    u8g2->setMaxClipWindow();
+
+    // --- Draw Value ---
+    if (val.length() > 0) {
+      int valStartX = usableWidth - maxValWidth;
+      u8g2->setClipWindow(valStartX, i * itemHeight, usableWidth, (i + 1) * itemHeight);
+      
+      if (idx == selectedIndex && realValWidth > maxValWidth) {
+        int scrollArea = realValWidth + rem(2.5);
+        int offset = (millis() / 40) % scrollArea;
+        u8g2->drawUTF8(valStartX - offset, y, val.c_str());
+        if (offset > (scrollArea - maxValWidth)) {
+          u8g2->drawUTF8(valStartX - offset + scrollArea, y, val.c_str());
+        }
+      } else {
+        // Alignment: if text is shorter than max area, align right.                                         │
+        // If longer, start from beginning (left of area). 
+        int drawX = (realValWidth > maxValWidth) ? valStartX : (usableWidth - realValWidth);
+        u8g2->drawUTF8(drawX, y, val.c_str());
+      }
+      u8g2->setMaxClipWindow();
     }
   }
-  u8g2.setDrawColor(1);
+  u8g2->setDrawColor(1);
   sendBuffer();
 }
 
+
 void handleMenuClick() {
+  audioPlayDefault(SOUND_CLICK);
   selectedIndex = (selectedIndex + 1) % menuItems.size();
 }
 
 void handleMenuDoubleClick() {
+  audioPlayDefault(SOUND_CLICK);
   if (selectedIndex < menuItems.size() && menuItems[selectedIndex].onAction) {
     menuItems[selectedIndex].onAction();
   }

@@ -13,6 +13,8 @@
 static std::vector<String> allQGifs;
 static std::vector<size_t> playbackQueue;
 
+static unsigned long lastClockShow = 0;
+
 static void refillAndShuffleQueue() {
   playbackQueue.clear();
   if (allQGifs.empty()) return;
@@ -81,28 +83,25 @@ void nextDasaiMochi() {
   gifPlayerSetFile(config.homePath + "/Mochi/" + filename, false);
 }
 
-static unsigned long lastClockShow = 0;
-const unsigned long clockShowInterval = 180000; // 3 minutes
-const unsigned long clockDuration = 5000;      // 5 seconds
-
 void loopDasaiMochi() {
   unsigned long now = millis();
 
-  if (now - lastClockShow < clockDuration) {
-    u8g2.clearBuffer();
+  if (now - lastClockShow < config.mochiClockDuration) {
+    u8g2->clearBuffer();
     drawStatusBar();
     drawMainClock();
     sendBuffer();
     return;
   }
 
-  if (now - lastClockShow > clockShowInterval + clockDuration) {
+  if (now - lastClockShow >
+      config.mochiClockInterval + config.mochiClockDuration) {
     lastClockShow = now;
   }
 
   gifPlayerTick();
 
-  if (isEndGif()) {
+  if (isEndGif() || gifPlayerGetCurrentFile().isEmpty()) {
     nextDasaiMochi();
   }
 }

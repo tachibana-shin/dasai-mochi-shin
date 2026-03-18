@@ -32,8 +32,9 @@ void initWiFi() {
 
     bool connected = wm.autoConnect(config.wifiAPName.c_str());
     if (connected) {
-      WiFi.mode(WIFI_STA); // Disable AP mode to save power
+      WiFi.mode(WIFI_STA);  // Disable AP mode to save power
     }
+    clearMessage();
   }
 }
 
@@ -48,9 +49,9 @@ static bool wifiConnectNew(String ssid, String pass, bool connect) {
 }
 
 void loopWiFiManager() {
-  u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
-  u8g2.drawStr(0, 20, "WiFi...");
+  u8g2->clearBuffer();
+  u8g2->setFont(u8g2_font_unifont_t_vietnamese1);
+  u8g2->drawStr(0, 20, "WiFi...");
   sendBuffer();
 
   Serial.println("[WiFi] Attempting connections from config...");

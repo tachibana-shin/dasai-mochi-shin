@@ -210,17 +210,18 @@ static void gifRenderFrame(uint8_t *frameData, uint16_t width,
     for (uint16_t i = 0; i < dataLen; i++) frameData[i] ^= 0xFF;
   }
 
-  uint16_t screenWidth = u8g2.getDisplayWidth();
-  uint16_t screenHeight = u8g2.getDisplayHeight();
+  uint16_t screenWidth = u8g2->getDisplayWidth();
+  uint16_t screenHeight = u8g2->getDisplayHeight();
 
   int16_t x = (screenWidth - width) / 2;
   int16_t y = (screenHeight - height) / 2;
 
-  u8g2.clearBuffer();
-  u8g2.drawBitmap(x, y, (width + 7) / 8, height, frameData);
+  u8g2->clearBuffer();
+  u8g2->drawBitmap(x, y, (width + 7) / 8, height, frameData);
   sendBuffer();
 }
 void gifPlayerTick() {
+  if (!gifPlayerMutex) gifPlayerMutex = xSemaphoreCreateMutex();
   // Handle pending file-change request
   if (_fileChanged) {
     _fileChanged = false;

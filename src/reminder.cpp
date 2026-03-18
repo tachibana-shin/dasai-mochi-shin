@@ -4,8 +4,8 @@
 #include <SD.h>
 #include <WiFi.h>
 
-#include "audio_manager.h"
 #include "chronos_manager.h"
+#include "audio_player.h"
 #include "config.h"
 #include "display.h"
 #include "e_locale.h"
@@ -78,7 +78,7 @@ void loopReminder() {
 
     if (!screenOn) toggleScreen();
     showDrinkPopup();
-    playDrinkAudio();
+    audioPlayDefault(SOUND_NOTIFY);
   }
 
   if (reminderActive) {
@@ -90,10 +90,8 @@ void loopReminder() {
       missedReminders++;
       recordDrinkEvent("miss");
       showMessage(L(MSG_MISSED_DRINK), 2000);
+      audioStop();
     }
-
-    // Handle confirmation in button logic by calling recordDrinkEvent("drink",
-    // 200)
   }
 }
 
@@ -104,6 +102,7 @@ void confirmDrink() {
   lastReminderTime = millis();
   recordDrinkEvent("drink", 200);  // Default 200ml
   showMessage(L(MSG_DRINK_GREAT), 2000);
+  audioStop();
 }
 
 int getMissedReminders() { return missedReminders; }

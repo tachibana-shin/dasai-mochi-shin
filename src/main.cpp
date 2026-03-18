@@ -16,12 +16,38 @@
 #include "time_utils.h"
 #include "weather.h"
 #include "wifi_manager.h"
-#include "audio_manager.h"
+#include "audio_player.h"
+
+void inputTask(void *pvParameters) {
+  for (;;) {
+    loopButton();
+    vTaskDelay(pdMS_TO_TICKS(10)); // 100Hz check for buttons
+  }
+}
+
+void mainTask(void *pvParameters) {
+  for (;;) {
+    loopChronos();
+    loopDisplay();
+    loopReminder();
+    loopAlarm();
+
+    if (isShowingMessage()) {
+      u8g2->clearBuffer();
+      drawMessageContent();
+      sendBuffer();
+    } else if (!isAlarmActive() && !isReminderActive()) {
+      Router::loop();
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(20)); // ~50 FPS, energy efficient
+  }
+}
 
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
-  setCpuFrequencyMhz(80);
+  setCpuFrequencyMhz(80); // Power saving mode
 
   initFFS();
   loadBootConfig();
@@ -33,31 +59,17 @@ void setup() {
   initWiFi();
   initReminder();
   initAlarm();
-  initAudio();
-  // boot image in initDasaiMochi
+  audioInit();
+
   initDasaiMochi();
+
+  Serial.println("Setup complete");
+
+  // Create tasks (No pinning needed for single-core ESP32-C3)
+  xTaskCreate(inputTask, "InputTask", 4096, NULL, 5, NULL);
+  xTaskCreate(mainTask, "MainTask", 8192, NULL, 1, NULL);
 }
 
 void loop() {
-  loopButton();
-  loopChronos();
-  // display module only check auto on/off device
-  loopDisplay();
-  loopReminder();
-  loopAlarm();
-  loopAudio();
-
-  // draw router
-  if (!isAlarmActive() && !isReminderActive()) {
-    Router::loop();
-  }
-
-  // Power optimization: Adjust performance based on activity
-  bool active = screenOn || isAudioPlaying();
-
-  if (active) {
-    delay(30);
-  } else {
-    delay(100);
-  }
+  vTaskDelete(NULL); // Delete the default loop task
 }

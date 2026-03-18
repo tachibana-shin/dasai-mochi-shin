@@ -1,5 +1,4 @@
 #include "display.h"
-#include "audio_manager.h"
 
 #include <ChronosESP32.h>
 #include <Wifi.h>
@@ -13,36 +12,80 @@
 #include "time_utils.h"
 #include "weather.h"
 
-U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/U8X8_PIN_NONE);
+U8G2 *u8g2 = nullptr;
 
 bool screenOn = true;
+SemaphoreHandle_t displayMutex = NULL;
 static unsigned long lastScreenAutoCheck = 0;
 const unsigned long screenAutoCheckInterval = 60000;
 
+float _vw_u = 1.28f, _vh_unit = 0.64f;
+int _rem_u = 8;
+
+void refreshUIUnits() {
+  if (!u8g2) return;
+  _vw_u = u8g2->getDisplayWidth() / 100.0f;
+  _vh_unit = u8g2->getDisplayHeight() / 100.0f;
+  _rem_u = 8; // Base size
+}
+
+static String currentMessage = "";
+static uint32_t messageTimeout = 0;
+static uint32_t messageStartTime = 0;
+static uint8_t messageMode = SHOW_WRAP;
+
 void initDisplay() {
+  displayMutex = xSemaphoreCreateMutex();
+  // We use SH1106 as default, but can be expanded based on config
+  u8g2 = new U8G2_SH1106_128X64_NONAME_F_HW_I2C(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
+  
   Wire.begin(config.pinScreenSDA, config.pinScreenSCL);
-  u8g2.begin();
-  u8g2.setContrast(config.brightness);
-  u8g2.enableUTF8Print();
+  u8g2->begin();
+  refreshUIUnits();
+  u8g2->setContrast(config.brightness);
+  u8g2->enableUTF8Print();
+}
+
+void resetScreenTimer() {
+  lastScreenAutoCheck = millis();
 }
 
 void toggleScreen() {
-  screenOn = !screenOn;
-  u8g2.setPowerSave(!screenOn);
-  playLockscreenAudio();
-  Serial.println(screenOn ? "Screen ON" : "Screen OFF");
+  if (!u8g2) return;
+  if (xSemaphoreTake(displayMutex, portMAX_DELAY)) {
+    screenOn = !screenOn;
+    u8g2->setPowerSave(!screenOn);
+    xSemaphoreGive(displayMutex);
+    resetScreenTimer();
+    Serial.println(screenOn ? "Screen ON" : "Screen OFF");
+  }
 }
 
 void showMessage(const char *msg, uint32_t timeout, uint8_t mode) {
-  u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_unifont_t_vietnamese1);
+  currentMessage = String(msg);
+  messageTimeout = timeout;
+  messageStartTime = millis();
+  messageMode = mode;
+  
+  // Draw immediately once
+  if (xSemaphoreTake(displayMutex, portMAX_DELAY)) {
+    u8g2->clearBuffer();
+    drawMessageContent();
+    u8g2->sendBuffer();
+    xSemaphoreGive(displayMutex);
+  }
+}
 
-  int16_t width = u8g2.getDisplayWidth();
-  int16_t height = u8g2.getDisplayHeight();
+void drawMessageContent() {
+  const char* msg = currentMessage.c_str();
+  u8g2->setFont(u8g2_font_unifont_t_vietnamese1);
+
+  int16_t width = u8g2->getDisplayWidth();
+  int16_t height = u8g2->getDisplayHeight();
   int16_t y = 20;
-  int16_t lineHeight = u8g2.getMaxCharHeight();
+  int16_t lineHeight = u8g2->getMaxCharHeight();
 
-  if (mode == SHOW_WRAP) {
+  if (messageMode == SHOW_WRAP) {
     char *lastSpace = NULL;
     int16_t lineStart = 0;
     int16_t i = 0;
@@ -61,7 +104,7 @@ void showMessage(const char *msg, uint32_t timeout, uint8_t mode) {
       if (len > 0 && len < 64) {
         strncpy(temp, msg + lineStart, len);
         temp[len] = '\0';
-        segmentWidth = u8g2.getStrWidth(temp);
+        segmentWidth = u8g2->getStrWidth(temp);
       }
 
       if (forceNewlne || segmentWidth > width) {
@@ -79,7 +122,7 @@ void showMessage(const char *msg, uint32_t timeout, uint8_t mode) {
           if (lineBuf) {
             strncpy(lineBuf, msg + lineStart, lineLen);
             lineBuf[lineLen] = '\0';
-            u8g2.drawStr(0, y, lineBuf);
+            u8g2->drawUTF8(0, y, lineBuf);
             free(lineBuf);
           }
         }
@@ -103,31 +146,30 @@ void showMessage(const char *msg, uint32_t timeout, uint8_t mode) {
     }
 
     if (msg[lineStart] != '\0') {
-      u8g2.drawStr(0, y, msg + lineStart);
+      u8g2->drawUTF8(0, y, msg + lineStart);
     }
-  } else if (mode == SHOW_MARQUEE) {
-    int16_t textWidth = u8g2.getStrWidth(msg);
+  } else if (messageMode == SHOW_MARQUEE) {
+    int16_t textWidth = u8g2->getStrWidth(msg);
     int16_t x = width;
-    uint32_t startTime = millis();
+    // For non-blocking marquee, we use time-based offset
+    uint32_t elapsed = millis() - messageStartTime;
     uint32_t stepTime = 30;
     int16_t step = 2;
-
-    while (millis() - startTime < timeout) {
-      u8g2.clearBuffer();
-      u8g2.drawStr(x, y, msg);
-      u8g2.sendBuffer();
-      x -= step;
-      if (x < -textWidth) {
-        x = width;
-      }
-      delay(stepTime);
-    }
+    int16_t totalSteps = elapsed / stepTime;
+    x -= (totalSteps * step) % (width + textWidth);
+    u8g2->drawUTF8(x, y, msg);
   } else {
-    u8g2.drawStr(0, y, msg);
+    u8g2->drawUTF8(0, y, msg);
   }
+}
 
-  u8g2.sendBuffer();
-  delay(timeout);
+bool isShowingMessage() {
+  if (messageTimeout == 0) return !currentMessage.isEmpty();
+  return (millis() - messageStartTime < messageTimeout);
+}
+
+void clearMessage() {
+  currentMessage = "";
 }
 
 static void checkScreenAutoOff() {
@@ -166,34 +208,37 @@ static void checkScreenAutoOff() {
 
 void loopDisplay() { checkScreenAutoOff(); }
 void sendBuffer() {
-  if (config.screenNegative) {
-    uint8_t *buf = u8g2.getBufferPtr();
-    const uint16_t len =
-        (uint16_t)(u8g2.getDisplayWidth() / 8) * u8g2.getDisplayHeight();
+  if (xSemaphoreTake(displayMutex, portMAX_DELAY)) {
+    if (config.screenNegative) {
+      uint8_t *buf = u8g2->getBufferPtr();
+      const uint16_t len =
+          (uint16_t)(u8g2->getDisplayWidth() / 8) * u8g2->getDisplayHeight();
 
-    for (uint16_t i = 0; i < len; i++) {
-      buf[i] ^= 0xFF;
+      for (uint16_t i = 0; i < len; i++) {
+        buf[i] ^= 0xFF;
+      }
     }
+
+    // With default R0: apply 180 rotation only when flip mode is on
+    if (config.screenFlipMode) {
+      uint8_t *buf = u8g2->getBufferPtr();
+      const uint16_t len =
+          (uint16_t)(u8g2->getDisplayWidth() / 8) * u8g2->getDisplayHeight();
+      for (uint16_t i = 0; i < len / 2; i++) {
+        uint8_t tmp = buf[i];
+        buf[i] = buf[len - 1 - i];
+        buf[len - 1 - i] = tmp;
+      }
+      for (uint16_t i = 0; i < len; i++) {
+        uint8_t b = buf[i];
+        b = ((b & 0xF0) >> 4) | ((b & 0x0F) << 4);
+        b = ((b & 0xCC) >> 2) | ((b & 0x33) << 2);
+        b = ((b & 0xAA) >> 1) | ((b & 0x55) << 1);
+        buf[i] = b;
+      }
+    }
+
+    u8g2->sendBuffer();
+    xSemaphoreGive(displayMutex);
   }
-
-  // With default R0: apply 180 rotation only when flip mode is on
-  if (config.screenFlipMode) {
-    uint8_t *buf = u8g2.getBufferPtr();
-    const uint16_t len =
-        (uint16_t)(u8g2.getDisplayWidth() / 8) * u8g2.getDisplayHeight();
-    for (uint16_t i = 0; i < len / 2; i++) {
-      uint8_t tmp = buf[i];
-      buf[i] = buf[len - 1 - i];
-      buf[len - 1 - i] = tmp;
-    }
-    for (uint16_t i = 0; i < len; i++) {
-      uint8_t b = buf[i];
-      b = ((b & 0xF0) >> 4) | ((b & 0x0F) << 4);
-      b = ((b & 0xCC) >> 2) | ((b & 0x33) << 2);
-      b = ((b & 0xAA) >> 1) | ((b & 0x55) << 1);
-      buf[i] = b;
-    }
-  }
-
-  u8g2.sendBuffer();
 }

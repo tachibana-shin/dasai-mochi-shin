@@ -35,7 +35,7 @@ struct AudioConfig {
   bool alarmEnabled = true;
   bool drinkEnabled = true;
   bool notifyEnabled = true;
-  int volume = 12; // 0-21
+  int volume = 12;  // 0-21
 };
 
 struct AppConfig {
@@ -81,11 +81,18 @@ struct AppConfig {
   // config for Dasai Mochi mode
   uint16_t mochiSpeedDivisor = 1;
   bool mochiNegative = false;
+  unsigned long mochiClockInterval = 180000;  // Default 3 mins
+  unsigned long mochiClockDuration = 5000;    // Default 5 secs
 
   bool screenFlipMode = false;
   bool screenNegative = false;
   uint16_t screenWidth = 128;
   uint16_t screenHeight = 64;
+
+  String customClickSoundPath = "Audio/click.qwav";
+  String customDrinkSoundPath = "Audio/drink.qwav";
+  String customAlarmSoundPath = "Audio/alarm.qwav";
+  String customNotifySoundPath = "Audio/notify.qwav";
 
   std::vector<AlarmEntry> alarms;
   DrinkConfig drink;

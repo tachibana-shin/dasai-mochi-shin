@@ -18,11 +18,13 @@ static unsigned long lastWeatherUpdate = 0;
 volatile bool weatherUpdating = false;
 
 static void weatherTask(void* pvParameters) {
-  weatherUpdating = true;
+  vTaskDelay(pdMS_TO_TICKS(20));
+
   Serial.println("[Weather] Background update started...");
 
   HTTPClient http;
   http.begin(config.weatherServer);
+  http.setTimeout(10000);
   int httpCode = http.GET();
 
   if (httpCode == HTTP_CODE_OK) {
@@ -59,7 +61,8 @@ static void weatherTask(void* pvParameters) {
 static bool updateOnlineWeather() {
   if (weatherUpdating || WiFi.status() != WL_CONNECTED) return false;
 
-  xTaskCreatePinnedToCore(weatherTask, "weatherTask", 8192, NULL, 1, NULL, 0);
+  weatherUpdating = true;
+  xTaskCreate(weatherTask, "weatherTask", 8192, NULL, 0, NULL);
   return true;
 }
 
