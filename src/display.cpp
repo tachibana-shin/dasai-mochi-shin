@@ -18,6 +18,7 @@ bool screenOn = true;
 SemaphoreHandle_t displayMutex = NULL;
 static unsigned long lastScreenAutoCheck = 0;
 const unsigned long screenAutoCheckInterval = 60000;
+static int lastAutoCheckedHour = -1;
 
 float _vw_u = 1.28f, _vh_unit = 0.64f;
 int _rem_u = 8;
@@ -26,7 +27,7 @@ void refreshUIUnits() {
   if (!u8g2) return;
   _vw_u = u8g2->getDisplayWidth() / 100.0f;
   _vh_unit = u8g2->getDisplayHeight() / 100.0f;
-  _rem_u = 8; // Base size
+  _rem_u = 8;  // Base size
 }
 
 static String currentMessage = "";
@@ -37,8 +38,9 @@ static uint8_t messageMode = SHOW_WRAP;
 void initDisplay() {
   displayMutex = xSemaphoreCreateMutex();
   // We use SH1106 as default, but can be expanded based on config
-  u8g2 = new U8G2_SH1106_128X64_NONAME_F_HW_I2C(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
-  
+  u8g2 =
+      new U8G2_SH1106_128X64_NONAME_F_HW_I2C(U8G2_R0, /* reset=*/U8X8_PIN_NONE);
+
   Wire.begin(config.pinScreenSDA, config.pinScreenSCL);
   u8g2->begin();
   refreshUIUnits();
@@ -46,9 +48,7 @@ void initDisplay() {
   u8g2->enableUTF8Print();
 }
 
-void resetScreenTimer() {
-  lastScreenAutoCheck = millis();
-}
+void resetScreenTimer() { lastScreenAutoCheck = millis(); }
 
 void toggleScreen() {
   if (!u8g2) return;
@@ -66,7 +66,7 @@ void showMessage(const char *msg, uint32_t timeout, uint8_t mode) {
   messageTimeout = timeout;
   messageStartTime = millis();
   messageMode = mode;
-  
+
   // Draw immediately once
   if (xSemaphoreTake(displayMutex, portMAX_DELAY)) {
     u8g2->clearBuffer();
@@ -77,7 +77,7 @@ void showMessage(const char *msg, uint32_t timeout, uint8_t mode) {
 }
 
 void drawMessageContent() {
-  const char* msg = currentMessage.c_str();
+  const char *msg = currentMessage.c_str();
   u8g2->setFont(u8g2_font_unifont_t_vietnamese1);
 
   int16_t width = u8g2->getDisplayWidth();
@@ -93,7 +93,7 @@ void drawMessageContent() {
     while (msg[i] != '\0') {
       char ch = msg[i];
       bool forceNewlne = (ch == '\n');
-      
+
       if (ch == ' ' || ch == '\t' || ch == '\n') {
         lastSpace = (char *)&msg[i];
       }
@@ -136,7 +136,7 @@ void drawMessageContent() {
         } else {
           lineStart = i;
         }
-        
+
         lastSpace = NULL;
         y += lineHeight;
         if (y + lineHeight > height) break;
@@ -168,41 +168,50 @@ bool isShowingMessage() {
   return (millis() - messageStartTime < messageTimeout);
 }
 
-void clearMessage() {
-  currentMessage = "";
-}
+void clearMessage() { currentMessage = ""; }
 
 static void checkScreenAutoOff() {
   if (millis() - lastScreenAutoCheck < screenAutoCheckInterval) return;
   lastScreenAutoCheck = millis();
+
+  int currentHour = getHour24();
+  if (currentHour < 0 || currentHour > 23) return;
 
   int onHour = config.autoOnHour;
   int offHour = config.autoOffHour;
 
   if (onHour == -1 && offHour == -1) return;
 
-  int currentHour = getHour24();
-
-  if (currentHour < 0 || currentHour > 23) return;
-
-  bool shouldBeOn;
-
-  if (onHour != -1 && offHour != -1) {
-    if (onHour <= offHour) {
-      shouldBeOn = (currentHour >= onHour && currentHour < offHour);
+  if (lastAutoCheckedHour == -1) {
+    // First run (boot): Determine initial state based on schedule
+    bool shouldBeOn = false;
+    if (onHour != -1 && offHour != -1) {
+      if (onHour <= offHour) {
+        shouldBeOn = (currentHour >= onHour && currentHour < offHour);
+      } else {
+        shouldBeOn = (currentHour >= onHour || currentHour < offHour);
+      }
+    } else if (onHour != -1) {
+      shouldBeOn = (currentHour >= onHour);
     } else {
-      shouldBeOn = (currentHour >= onHour || currentHour < offHour);
+      shouldBeOn = (currentHour < offHour);
     }
-  } else if (onHour != -1) {
-    shouldBeOn = (currentHour >= onHour);
-  } else {
-    shouldBeOn = (currentHour < offHour);
+
+    if (shouldBeOn != screenOn) {
+      toggleScreen();
+    }
+    lastAutoCheckedHour = currentHour;
+    return;
   }
 
-  if (shouldBeOn && !screenOn) {
-    toggleScreen();
-  } else if (!shouldBeOn && screenOn) {
-    toggleScreen();
+  if (currentHour != lastAutoCheckedHour) {
+    // Hour transition: Only toggle if we hit a boundary
+    if (onHour != -1 && currentHour == onHour) {
+      if (!screenOn) toggleScreen();
+    } else if (offHour != -1 && currentHour == offHour) {
+      if (screenOn) toggleScreen();
+    }
+    lastAutoCheckedHour = currentHour;
   }
 }
 

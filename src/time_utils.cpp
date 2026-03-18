@@ -52,9 +52,9 @@ void syncLocalFromChronos() {
   tv.tv_usec = 0;
 
   settimeofday(&tv, nullptr);
-  }
+}
 
-  int getHour24() {
+int getHour24() {
   struct tm timeinfo;
   if (getLocalTime(&timeinfo)) {
     return timeinfo.tm_hour;
@@ -67,4 +67,4 @@ void syncLocalFromChronos() {
     if (ampm == "AM" && hour == 12) hour = 0;
   }
   return hour;
-  }
+}
