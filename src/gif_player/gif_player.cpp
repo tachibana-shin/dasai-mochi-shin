@@ -7,6 +7,7 @@
 #include "../config.h"
 #include "../display.h"
 #include "../filesystem.h"
+#include "../reminder.h"
 
 static SemaphoreHandle_t gifPlayerMutex;
 
@@ -218,6 +219,16 @@ static void gifRenderFrame(uint8_t *frameData, uint16_t width,
 
   u8g2->clearBuffer();
   u8g2->drawBitmap(x, y, (width + 7) / 8, height, frameData);
+
+  // Draw missed reminder icon if any
+  if (getMissedReminders() > 0) {
+    bool flash = (millis() / 500) % 2 == 0;
+    if (flash) {
+      u8g2->setFont(u8g2_font_open_iconic_weather_1x_t);
+      u8g2->drawGlyph(vw(100) - 10, vh(15.6), 0x48);  // drop icon
+    }
+  }
+
   sendBuffer();
 }
 void gifPlayerTick() {
