@@ -8,6 +8,7 @@
 #include "display.h"
 #include "e_locale.h"
 #include "router.h"
+#include "time_utils.h"
 
 void initWiFi() {
   WiFi.disconnect(true, true);
@@ -89,6 +90,8 @@ void loopWiFiManager() {
     String msg = String(L(MSG_WIFI_CONNECTED)) + ":\n" + wm.getWiFiSSID();
     showMessage(msg.c_str(), 1500);
   }
+
+  syncNTP();
 
   // auto back
   Router::pop();

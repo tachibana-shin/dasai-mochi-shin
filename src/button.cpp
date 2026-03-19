@@ -1,7 +1,6 @@
 #include "button.h"
 
 #include <Arduino.h>
-#include <WiFi.h>
 
 #include "alarm.h"
 #include "audio_player.h"

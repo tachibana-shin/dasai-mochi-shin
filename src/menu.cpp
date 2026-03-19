@@ -272,7 +272,7 @@ static void setupMenuItems() {
   };
   mClockInt.onAction = []() {
     int mins = config.mochiClockInterval / 60000;
-    mins = (mins % 30) + 1; // 1 to 30 mins
+    mins = (mins % 30) + 1;  // 1 to 30 mins
     config.mochiClockInterval = (unsigned long)mins * 60000;
     saveConfig();
   };
@@ -285,7 +285,7 @@ static void setupMenuItems() {
   };
   mClockDur.onAction = []() {
     int secs = config.mochiClockDuration / 1000;
-    secs = (secs % 30) + 5; // 5 to 30 secs
+    secs = (secs % 30) + 5;  // 5 to 30 secs
     if (secs > 30) secs = 5;
     config.mochiClockDuration = (unsigned long)secs * 1000;
     saveConfig();
@@ -368,9 +368,9 @@ void loopSettings() {
   int displayW = u8g2->getDisplayWidth();
   int displayH = u8g2->getDisplayHeight();
 
-  int itemHeight = vh(25); // 16px if height is 64px
+  int itemHeight = vh(25);  // 16px if height is 64px
   if (itemHeight < 12) itemHeight = 12;
-  int visibleCount = displayH / itemHeight; 
+  int visibleCount = displayH / itemHeight;
   int scrollOffset = 0;
 
   if (selectedIndex >= visibleCount) {
@@ -382,12 +382,12 @@ void loopSettings() {
   int barWidth = rem(0.4);
   if (barWidth < 3) barWidth = 3;
   int barX = displayW - barWidth;
-  
+
   int barSize = (visibleCount * scrollBarHeight) / menuItems.size();
   if (barSize < 4) barSize = 4;
   int barPos =
       (selectedIndex * (scrollBarHeight - barSize)) / (menuItems.size() - 1);
-  
+
   u8g2->drawVLine(displayW - 2, 0, scrollBarHeight);
   u8g2->drawBox(barX, barPos, barWidth, barSize);
 
@@ -415,19 +415,24 @@ void loopSettings() {
       realValWidth = u8g2->getUTF8Width(val.c_str());
     }
 
-    int maxValWidth = vw(37.5); // Exact 48px on 128px screen
-    int displayValWidth = (realValWidth > maxValWidth) ? maxValWidth : realValWidth;
-    int availableLabelWidth = usableWidth - (displayValWidth > 0 ? (displayValWidth + rem(0.8)) : 0) - rem(0.5);
+    int maxValWidth = vw(37.5);  // Exact 48px on 128px screen
+    int displayValWidth =
+        (realValWidth > maxValWidth) ? maxValWidth : realValWidth;
+    int availableLabelWidth =
+        usableWidth - (displayValWidth > 0 ? (displayValWidth + rem(0.8)) : 0) -
+        rem(0.5);
     int labelWidth = u8g2->getUTF8Width(menuItems[idx].label.c_str());
 
     // --- Draw Label ---
-    u8g2->setClipWindow(rem(0.25), i * itemHeight, availableLabelWidth + rem(0.25), (i + 1) * itemHeight);
+    u8g2->setClipWindow(rem(0.25), i * itemHeight,
+                        availableLabelWidth + rem(0.25), (i + 1) * itemHeight);
     if (idx == selectedIndex && labelWidth > availableLabelWidth) {
       int scrollArea = labelWidth + rem(4);
       int offset = (millis() / 40) % scrollArea;
       u8g2->drawUTF8(rem(0.25) - offset, y, menuItems[idx].label.c_str());
       if (offset > (scrollArea - availableLabelWidth)) {
-        u8g2->drawUTF8(rem(0.3) - offset + scrollArea, y, menuItems[idx].label.c_str());
+        u8g2->drawUTF8(rem(0.3) - offset + scrollArea, y,
+                       menuItems[idx].label.c_str());
       }
     } else {
       u8g2->drawUTF8(rem(0.3), y, menuItems[idx].label.c_str());
@@ -437,8 +442,9 @@ void loopSettings() {
     // --- Draw Value ---
     if (val.length() > 0) {
       int valStartX = usableWidth - maxValWidth;
-      u8g2->setClipWindow(valStartX, i * itemHeight, usableWidth, (i + 1) * itemHeight);
-      
+      u8g2->setClipWindow(valStartX, i * itemHeight, usableWidth,
+                          (i + 1) * itemHeight);
+
       if (idx == selectedIndex && realValWidth > maxValWidth) {
         int scrollArea = realValWidth + rem(2.5);
         int offset = (millis() / 40) % scrollArea;
@@ -447,9 +453,10 @@ void loopSettings() {
           u8g2->drawUTF8(valStartX - offset + scrollArea, y, val.c_str());
         }
       } else {
-        // Alignment: if text is shorter than max area, align right.                                         │
-        // If longer, start from beginning (left of area). 
-        int drawX = (realValWidth > maxValWidth) ? valStartX : (usableWidth - realValWidth);
+        // Alignment: if text is shorter than max area, align right. │ If
+        // longer, start from beginning (left of area).
+        int drawX = (realValWidth > maxValWidth) ? valStartX
+                                                 : (usableWidth - realValWidth);
         u8g2->drawUTF8(drawX, y, val.c_str());
       }
       u8g2->setMaxClipWindow();
@@ -458,7 +465,6 @@ void loopSettings() {
   u8g2->setDrawColor(1);
   sendBuffer();
 }
-
 
 void handleMenuClick() {
   audioPlayDefault(SOUND_CLICK);
