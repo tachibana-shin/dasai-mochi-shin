@@ -3,12 +3,11 @@ import { ref } from "vue"
 export function useSerial() {
   const port = ref<any>(null)
   const isConnected = ref(false)
-  const reader = ref<any>(null)
   const writer = ref<any>(null)
 
   const connect = async () => {
     try {
-      // @ts-ignore
+      // @ts-expect-error Web Serial API not in TS types
       port.value = await navigator.serial.requestPort()
       await port.value.open({ baudRate: 115200 })
       isConnected.value = true
@@ -30,7 +29,8 @@ export function useSerial() {
 
   const send = async (data: string) => {
     if (writer.value) {
-      console.log("Serial TX:", data) // Debug log
+      // Debug log
+      console.log("Serial TX:", data)
       const encoder = new TextEncoder()
       await writer.value.write(encoder.encode(data + "\n"))
     }
@@ -39,7 +39,7 @@ export function useSerial() {
   const listen = async () => {
     while (port.value && port.value.readable) {
       const textDecoderStream = new TextDecoderStream()
-      const readableStreamClosed = port.value.readable.pipeTo(textDecoderStream.writable)
+      port.value.readable.pipeTo(textDecoderStream.writable)
       const readerStream = textDecoderStream.readable.getReader()
 
       try {
@@ -47,10 +47,11 @@ export function useSerial() {
         while (true) {
           const { value, done } = await readerStream.read()
           if (done) break
-          
+
           buffer += value
           const lines = buffer.split("\n")
-          buffer = lines.pop() || "" // Keep the last incomplete line in buffer
+          // Keep the last incomplete line in buffer
+          buffer = lines.pop() || ""
 
           for (const line of lines) {
             const trimmedLine = line.trim()

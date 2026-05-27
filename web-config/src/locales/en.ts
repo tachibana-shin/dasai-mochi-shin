@@ -10,7 +10,7 @@ export default {
     refresh: "Refresh",
     system: "System",
     connected: "Connected",
-    disconnected: "Disconnected"
+    disconnected: "Disconnected",
   },
   display: {
     brightness: "Brightness",
@@ -20,7 +20,7 @@ export default {
     display: "Display",
     mochi: "Mochi faces",
     audio: "Audio",
-    system: "System Info"
+    system: "System Info",
   },
   system: {
     title: "System Information",
@@ -32,7 +32,7 @@ export default {
     sd_not_found: "SD Card Not Detected",
     gpio: "GPIO Mapping",
     warning: "Changing GPIO pins will take effect after reboot. Please verify connections.",
-    storage_notice: "Resources (GIFs, sounds) and settings are stored on the SD Card (except GPIO pin mapping)."
+    storage_notice: "Resources (GIFs, sounds) and settings are stored on the SD Card (except GPIO pin mapping).",
   },
   mochi: {
     manage: "Manage Mochi Faces",
@@ -40,6 +40,6 @@ export default {
     delete: "Delete Face",
     animation: "Animation Speed",
     interval: "Clock Interval",
-    duration: "Clock Duration"
-  }
+    duration: "Clock Duration",
+  },
 }

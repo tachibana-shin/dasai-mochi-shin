@@ -1,2 +1,73 @@
 /* Global styles managed in App.vue */
 @import "tailwindcss";
+
+@import "primeicons/primeicons.css";
+
+:root {
+  --primary-color: #3b82f6;
+}
+
+body {
+  background-color: #0b0f1a;
+  color: #e2e8f0;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.p-tabs {
+  background: transparent !important;
+}
+.p-tablist {
+  background: transparent !important;
+}
+.p-tablist-tab {
+  background: transparent !important;
+  color: #64748b !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+}
+.p-tablist-tab:hover {
+  color: #94a3b8 !important;
+}
+.p-tablist-active-bar {
+  background: var(--primary-color) !important;
+  height: 3px !important;
+}
+.p-tablist-tab[data-p-active="true"] {
+  color: white !important;
+}
+
+.p-inputtext,
+.p-inputnumber-input {
+  background: #111827 !important;
+  border: 1px solid #1f2937 !important;
+  color: white !important;
+  border-radius: 0.75rem !important;
+}
+
+.p-inputtext:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+.p-progressbar {
+  background: #1f2937 !important;
+  border-radius: 1rem !important;
+  overflow: hidden;
+}
+.p-progressbar-value {
+  background: var(--primary-color) !important;
+  transition: width 0.5s ease;
+}
+
+.p-button {
+  border-radius: 0.75rem !important;
+  transition: all 0.2s;
+}
+.p-button:hover {
+  transform: translateY(-1px);
+}
+
+.p-selectbutton .p-button {
+  font-size: 0.7rem !important;
+  padding: 0.25rem 0.75rem !important;
+}

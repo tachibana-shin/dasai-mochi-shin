@@ -57,6 +57,7 @@ void setupApiEndpoints() {
     else if (path.endsWith(".svg")) ct = "image/svg+xml";
     else if (path.endsWith(".json")) ct = "application/json";
     else if (path.endsWith(".png")) ct = "image/png";
+    else if (path.endsWith(".qgif") || path.endsWith(".qgif+")) ct = "application/octet-stream";
 
     auto serveFile = [&](fs::File f, size_t sz, const String& enc) {
       Serial.printf("[serve] %s (%u)%s\n", path.c_str(), sz, enc.length() ? " gzip" : "");
@@ -84,7 +85,10 @@ void setupApiEndpoints() {
     if (sf) sf.close();
 
     sf = LittleFS.open(path, "r");
-    if ((!sf || sf.size() == 0) && sdInitialized) sf = SD.open(path, "r");
+    if ((!sf || sf.size() == 0) && sdInitialized) sf = SD.open(config.homePath + path, "r");
+    Serial.println(sdInitialized);
+    Serial.println((!sf || sf.size() == 0));
+    Serial.println(path);
     if (sf && sf.size() > 0) { serveFile(sf, sf.size(), ""); return; }
     if (sf) sf.close();
 
@@ -264,9 +268,10 @@ void setupApiEndpoints() {
   });
 
   // POST /api/preview/audio
-  server.on("/api/preview/audio", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (request->hasParam("path", true)) {
-      String path = request->getParam("path", true)->value();
+  AsyncCallbackJsonWebHandler *audioPreviewHandler = new AsyncCallbackJsonWebHandler("/api/preview/audio", [](AsyncWebServerRequest *request, JsonVariant &json) {
+    JsonObject obj = json.as<JsonObject>();
+    if (obj.containsKey("path")) {
+      String path = obj["path"].as<String>();
       fs::File file = getFile(config.homePath + "/" + path, FILE_READ);
       if (file) {
         audioPlayFile(file);
@@ -278,6 +283,7 @@ void setupApiEndpoints() {
       request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"Missing path parameter\"}");
     }
   });
+  server.addHandler(audioPreviewHandler);
 
   // GET /api/files/list
   server.on("/api/files/list", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -326,7 +332,7 @@ void setupApiEndpoints() {
   server.on("/api/files/delete", HTTP_DELETE, [](AsyncWebServerRequest *request) {
     if (request->hasParam("path")) {
       String path = request->getParam("path")->value();
-      bool ok = LittleFS.remove(path) || SD.remove(path);
+      bool ok = LittleFS.remove(path) || SD.remove(config.homePath + path);
       if (ok) {
         request->send(200, "application/json", "{\"status\":\"ok\"}");
       } else {

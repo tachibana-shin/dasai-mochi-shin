@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { useI18n } from "vue-i18n"
+import { Globe, Smile } from "lucide-vue-next"
+import Button from "primevue/button"
 import InputText from "primevue/inputtext"
 import SelectButton from "primevue/selectbutton"
-import Button from "primevue/button"
-import { Smile, Globe } from "lucide-vue-next"
+import { useI18n } from "vue-i18n"
+
+import type { AppConfig } from "../types/config"
 
 defineProps<{
   isConnected: boolean
@@ -46,11 +48,29 @@ const { t, locale } = useI18n()
       </div>
 
       <div v-if="!isConnected" class="flex items-center space-x-2">
-        <InputText :modelValue="baseUrl" @update:modelValue="emit('update:baseUrl', $event)" placeholder="http://mochishin.local" class="w-48 text-xs" />
-        <Button :label="t('common.connect')" icon="pi pi-link" @click="emit('connect')" :loading="isScanning" class="rounded-full font-bold" />
+        <InputText
+          :modelValue="baseUrl"
+          @update:modelValue="emit('update:baseUrl', $event)"
+          placeholder="http://mochishin.local"
+          class="w-48 text-xs"
+        />
+        <Button
+          :label="t('common.connect')"
+          icon="pi pi-link"
+          @click="emit('connect')"
+          :loading="isScanning"
+          class="rounded-full font-bold"
+        />
         <Button icon="pi pi-search" @click="emit('scan')" :loading="isScanning" text rounded />
       </div>
-      <Button v-else :label="t('common.disconnect')" severity="danger" outlined @click="emit('disconnect')" class="rounded-full font-bold" />
+      <Button
+        v-else
+        :label="t('common.disconnect')"
+        severity="danger"
+        outlined
+        @click="emit('disconnect')"
+        class="rounded-full font-bold"
+      />
     </div>
   </header>
 </template>

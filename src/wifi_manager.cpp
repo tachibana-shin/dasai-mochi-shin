@@ -13,6 +13,38 @@
 
 namespace {
 constexpr uint32_t kConfigPortalTimeoutSec = 180;
+
+bool tryWifiEntry(const String& ssid, const String& pass) {
+  if (ssid.length() == 0) return false;
+
+  Serial.printf("[WiFi] Trying: %s\n", ssid.c_str());
+
+  WiFi.persistent(true);
+  WiFi.enableSTA(true);
+  WiFi.begin(ssid.c_str(), pass.c_str());
+
+  int retry = 0;
+  while (WiFi.status() != WL_CONNECTED && retry < 20) {
+    delay(500);
+    retry++;
+  }
+  WiFi.persistent(false);
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.printf("[WiFi] Connected to %s\n", ssid.c_str());
+    return true;
+  }
+
+  WiFi.disconnect(false, false);
+  return false;
+}
+
+bool tryConfigWifiEntries() {
+  for (auto& w : config.wifi) {
+    if (tryWifiEntry(w.ssid, w.pass)) return true;
+  }
+  return false;
+}
 }
 
 void initWiFi() {
@@ -28,6 +60,17 @@ void initWiFi() {
   if (config.wifiEnabled) {
     showMessage(("WiFi Setup\nAP: " + config.wifiAPName).c_str(), 0);
 
+    if (tryConfigWifiEntries()) {
+      ensureMdnsStarted();
+      WiFi.mode(WIFI_STA);
+      String ip = WiFi.localIP().toString();
+      Serial.printf("WiFi connected! IP: http://%s\n", ip.c_str());
+      showMessage(("IP: " + ip).c_str(), 3000);
+      clearMessage();
+      return;
+    }
+
+    Serial.println("[WiFi] Saved entries failed, opening WiFiManager");
     WiFiManager wm;
     wm.setClass("invert");
     wm.setConfigPortalTimeout(kConfigPortalTimeoutSec);
@@ -39,23 +82,13 @@ void initWiFi() {
     bool connected = wm.autoConnect(config.wifiAPName.c_str());
     if (connected) {
       ensureMdnsStarted();
-      WiFi.mode(WIFI_STA);  // Disable AP mode to save power
+      WiFi.mode(WIFI_STA);
       String ip = WiFi.localIP().toString();
       Serial.printf("WiFi connected! IP: http://%s\n", ip.c_str());
       showMessage(("IP: " + ip).c_str(), 3000);
     }
     clearMessage();
   }
-}
-
-static bool wifiConnectNew(String ssid, String pass, bool connect) {
-  WiFi.persistent(true);
-  WiFi.enableSTA(true);
-  WiFi.persistent(false);
-  WiFi.persistent(true);
-  bool ret = WiFi.begin(ssid.c_str(), pass.c_str(), 0, NULL, connect);
-  WiFi.persistent(false);
-  return ret;
 }
 
 void loopWiFiManager() {
@@ -66,20 +99,15 @@ void loopWiFiManager() {
 
   Serial.println("[WiFi] Attempting connections from config...");
 
-  // for (auto& w : config.wifi) {
-  //   Serial.println("[WiFi] Trying: " + w.ssid);
-  //   if (wifiConnectNew(w.ssid, w.pass, true)) {
-  //     int retry = 0;
-  //     while (WiFi.status() != WL_CONNECTED && retry < 20) {
-  //       delay(500);
-  //       retry++;
-  //     }
-  //     if (WiFi.status() == WL_CONNECTED) {
-  //       Serial.println("[WiFi] Connected by saved list!");
-  //       return;
-  //     }
-  //   }
-  // }
+  if (tryConfigWifiEntries()) {
+    Serial.println("[WiFi] Connected by saved list!");
+    ensureMdnsStarted();
+    String msg = String(L(MSG_WIFI_CONNECTED)) + ":\n" + WiFi.SSID();
+    showMessage(msg.c_str(), 1500);
+    syncNTP();
+    Router::pop();
+    return;
+  }
 
   Serial.println("[WiFi] All saved failed, opening WiFiManager");
 
@@ -102,7 +130,5 @@ void loopWiFiManager() {
   }
 
   syncNTP();
-
-  // auto back
   Router::pop();
 }

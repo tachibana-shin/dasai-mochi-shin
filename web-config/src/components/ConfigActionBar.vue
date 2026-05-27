@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useI18n } from "vue-i18n"
 import Button from "primevue/button"
+import { useI18n } from "vue-i18n"
 
 defineProps<{
   isSaving: boolean

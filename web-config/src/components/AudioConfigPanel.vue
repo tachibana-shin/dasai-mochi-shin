@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { useI18n } from "vue-i18n"
-import InputText from "primevue/inputtext"
 import Button from "primevue/button"
+import InputText from "primevue/inputtext"
+import { useI18n } from "vue-i18n"
+
 import type { AppConfig } from "../types/config"
 
 defineProps<{
@@ -28,14 +29,26 @@ const { t } = useI18n()
         <label class="text-xs font-bold text-gray-500">Click Sound Path</label>
         <div class="flex space-x-2">
           <InputText v-model="config.customClickSoundPath" class="flex-grow" />
-          <Button label="Preview" icon="pi pi-play" text size="small" @click="emit('preview', config.customClickSoundPath)" />
+          <Button
+            label="Preview"
+            icon="pi pi-play"
+            text
+            size="small"
+            @click="emit('preview', config.customClickSoundPath)"
+          />
         </div>
       </div>
       <div class="flex flex-col space-y-2">
         <label class="text-xs font-bold text-gray-500">Notify Sound Path</label>
         <div class="flex space-x-2">
           <InputText v-model="config.customNotifySoundPath" class="flex-grow" />
-          <Button label="Preview" icon="pi pi-play" text size="small" @click="emit('preview', config.customNotifySoundPath)" />
+          <Button
+            label="Preview"
+            icon="pi pi-play"
+            text
+            size="small"
+            @click="emit('preview', config.customNotifySoundPath)"
+          />
         </div>
       </div>
     </div>

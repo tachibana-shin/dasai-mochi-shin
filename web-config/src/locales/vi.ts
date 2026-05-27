@@ -10,7 +10,7 @@ export default {
     refresh: "Làm mới",
     system: "Hệ thống",
     connected: "Đã kết nối",
-    disconnected: "Chưa kết nối"
+    disconnected: "Chưa kết nối",
   },
   display: {
     brightness: "Độ sáng",
@@ -20,7 +20,7 @@ export default {
     display: "Màn hình",
     mochi: "Mochi Face",
     audio: "Âm thanh",
-    system: "Thông tin hệ thống"
+    system: "Thông tin hệ thống",
   },
   system: {
     title: "Thông tin hệ thống",
@@ -32,7 +32,8 @@ export default {
     sd_not_found: "Không nhận thấy thẻ nhớ SD",
     gpio: "Cấu hình chân (GPIO)",
     warning: "Thay đổi chân GPIO sẽ có hiệu lực sau khi khởi động lại. Hãy đảm bảo đấu nối đúng.",
-    storage_notice: "Tất cả tài nguyên (GIF, âm thanh) và các cài đặt sẽ được lưu trên thẻ nhớ SD (ngoại trừ cấu hình các chân kết nối)."
+    storage_notice:
+      "Tất cả tài nguyên (GIF, âm thanh) và các cài đặt sẽ được lưu trên thẻ nhớ SD (ngoại trừ cấu hình các chân kết nối).",
   },
   mochi: {
     manage: "Quản lý mặt Mochi",
@@ -40,6 +41,6 @@ export default {
     delete: "Xóa mặt",
     animation: "Tốc độ Animation",
     interval: "Khoảng cách hiện Clock",
-    duration: "Thời gian hiện Clock"
-  }
+    duration: "Thời gian hiện Clock",
+  },
 }

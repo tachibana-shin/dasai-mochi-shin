@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { useI18n } from "vue-i18n"
 import InputNumber from "primevue/inputnumber"
 import Slider from "primevue/slider"
 import ToggleSwitch from "primevue/toggleswitch"
+import { useI18n } from "vue-i18n"
+
 import type { AppConfig } from "../types/config"
 
 defineProps<{
@@ -16,7 +17,7 @@ const { t } = useI18n()
   <div v-if="config" class="space-y-8">
     <div class="flex justify-between items-center p-6 bg-gray-900/30 rounded-2xl border border-gray-700">
       <div class="space-y-1">
-        <h3 class="font-bold">{{ t('display.brightness') }}</h3>
+        <h3 class="font-bold">{{ t("display.brightness") }}</h3>
         <p class="text-xs text-gray-500">OLED Brightness Control</p>
       </div>
       <div class="w-64 flex items-center space-x-4">

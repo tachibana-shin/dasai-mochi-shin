@@ -1,61 +1,62 @@
 export interface WifiEntry {
-  ssid: string;
-  pass: string;
+  ssid: string
+  pass: string
 }
 
 export interface AudioConfig {
-  notifyEnabled: boolean;
-  volume: number; // 0-21
+  notifyEnabled: boolean
+  // 0-21
+  volume: number
 }
 
 export interface AppConfig {
-  brightness: number;
-  wifiEnabled: boolean;
-  bluetoothEnabled: boolean;
-  weatherInterval: number;
-  autoOffHour: number;
-  autoOnHour: number;
+  brightness: number
+  wifiEnabled: boolean
+  bluetoothEnabled: boolean
+  weatherInterval: number
+  autoOffHour: number
+  autoOnHour: number
 
-  wifi: WifiEntry[];
-  audio: AudioConfig;
+  wifi: WifiEntry[]
+  audio: AudioConfig
 
-  pinScreenSDA: number;
-  pinScreenSCL: number;
-  pinSensorTap: number;
-  pinSdCS: number;
-  pinSdMOSI: number;
-  pinSdCLK: number;
-  pinSdMISO: number;
-  pinAudioLRC: number;
-  pinAudioDIN: number;
-  pinAudioBCLK: number;
+  pinScreenSDA: number
+  pinScreenSCL: number
+  pinSensorTap: number
+  pinSdCS: number
+  pinSdMOSI: number
+  pinSdCLK: number
+  pinSdMISO: number
+  pinAudioLRC: number
+  pinAudioDIN: number
+  pinAudioBCLK: number
 
   // Metadata & Localization
-  wifiAPName: string;
-  bluetoothName: string;
-  ntpServer: string;
-  gmtOffset_sec: number;
-  daylightOffset_sec: number;
-  is24Hour: boolean;
-  langCode: string;
+  wifiAPName: string
+  bluetoothName: string
+  ntpServer: string
+  gmtOffset_sec: number
+  daylightOffset_sec: number
+  is24Hour: boolean
+  langCode: string
 
   // Weather & Paths
-  weatherServer: string;
-  homePath: string;
+  weatherServer: string
+  homePath: string
 
   // Mochi Mode settings
-  mochiSpeedDivisor: number;
-  mochiNegative: boolean;
-  mochiClockInterval: number;
-  mochiClockDuration: number;
+  mochiSpeedDivisor: number
+  mochiNegative: boolean
+  mochiClockInterval: number
+  mochiClockDuration: number
 
   // Display Hardware settings
-  screenFlipMode: boolean;
-  screenNegative: boolean;
-  screenWidth: number;
-  screenHeight: number;
+  screenFlipMode: boolean
+  screenNegative: boolean
+  screenWidth: number
+  screenHeight: number
 
   // Sound paths
-  customClickSoundPath: string;
-  customNotifySoundPath: string;
+  customClickSoundPath: string
+  customNotifySoundPath: string
 }

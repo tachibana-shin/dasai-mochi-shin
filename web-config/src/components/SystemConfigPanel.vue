@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { useI18n } from "vue-i18n"
-import InputText from "primevue/inputtext"
-import InputNumber from "primevue/inputnumber"
-import ToggleSwitch from "primevue/toggleswitch"
 import { RefreshCw } from "lucide-vue-next"
+import InputNumber from "primevue/inputnumber"
+import InputText from "primevue/inputtext"
+import ToggleSwitch from "primevue/toggleswitch"
+import { useI18n } from "vue-i18n"
+
 import type { AppConfig } from "../types/config"
 
 defineProps<{
@@ -18,8 +19,8 @@ const { t } = useI18n()
     <div class="p-6 bg-yellow-500/5 border border-yellow-500/20 rounded-2xl flex items-start space-x-4">
       <div class="p-2 bg-yellow-500/20 rounded-lg text-yellow-500"><RefreshCw class="w-5 h-5" /></div>
       <div>
-        <h3 class="font-bold text-yellow-500">{{ t('system.gpio') }}</h3>
-        <p class="text-xs text-yellow-200/50">{{ t('system.warning') }}</p>
+        <h3 class="font-bold text-yellow-500">{{ t("system.gpio") }}</h3>
+        <p class="text-xs text-yellow-200/50">{{ t("system.warning") }}</p>
       </div>
     </div>
 
