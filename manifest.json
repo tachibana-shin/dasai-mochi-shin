@@ -1,0 +1,11 @@
+{
+  "name": "Dasai Mochi Shin",
+  "version": "unknown",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-C3",
+      "parts": []
+    }
+  ]
+}
