@@ -1,0 +1,99 @@
+name: Deploy Flasher to GitHub Pages
+
+on:
+  workflow_run:
+    workflows: ['Build and Release']
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - 'tools/flasher/**'
+      - '.github/workflows/deploy-gh-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Fetch latest release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+          echo "Fetching latest release for $REPO..."
+          RELEASE_JSON=$(gh release view --repo "$REPO" --json tagName,assets 2>/dev/null || true)
+
+          if [ -z "$RELEASE_JSON" ]; then
+            echo "No release found. Skipping binary download."
+            mkdir -p tools/flasher
+            exit 0
+          fi
+
+          TAG=$(echo "$RELEASE_JSON" | jq -r '.tagName')
+          echo "Latest release: $TAG"
+
+          DIR=tools/flasher
+          for name in firmware.bin littlefs.bin bootloader.bin partitions.bin latest.json; do
+            echo "Downloading $name..."
+            gh release download "$TAG" --repo "$REPO" --pattern "$name" --dir "$DIR" 2>/dev/null || true
+          done
+
+          echo "Release assets:"
+          ls -lh "$DIR"/
+
+      - name: Generate manifest.json
+        run: |
+          python3 << 'PYEOF'
+          import json, os
+
+          flash_map = {
+              "bootloader.bin": 0x0,
+              "partitions.bin": 0x8000,
+              "firmware.bin":   0x10000,
+              "littlefs.bin":   0x210000,
+          }
+
+          version = "unknown"
+          latest_path = "tools/flasher/latest.json"
+          if os.path.exists(latest_path):
+              with open(latest_path) as f:
+                  try:
+                      data = json.load(f)
+                      version = data.get("version", "unknown")
+                  except json.JSONDecodeError:
+                      pass
+
+          parts = []
+          for name, offset in flash_map.items():
+              path = os.path.join("tools/flasher", name)
+              if os.path.exists(path):
+                  parts.append({"path": name, "offset": offset})
+
+          manifest = {
+              "name": "Dasai Mochi Shin",
+              "version": version,
+              "new_install_prompt_erase": True,
+              "builds": [{"chipFamily": "ESP32-C3", "parts": parts}],
+          }
+
+          with open("tools/flasher/manifest.json", "w") as f:
+              json.dump(manifest, f, indent=2)
+          print("manifest.json generated")
+          PYEOF
+
+          echo "Flasher directory:"
+          ls -la tools/flasher/
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./tools/flasher
+          publish_branch: gh-pages
+          force_orphan: true

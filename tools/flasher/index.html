@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dasai Mochi Shin - Flasher</title>
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+</head>
+<body>
+  <div class="header">
+    <div class="header-brand">
+      <span class="brand-accent">Dasai</span>
+      <span class="brand-text">Mochi Shin</span>
+      <span class="brand-sep"></span>
+      <span class="brand-sub">Flasher</span>
+    </div>
+    <button class="theme-toggle" id="themeBtn" type="button" aria-label="Switch theme">
+      <svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <g class="theme-icon-sun">
+          <circle cx="12" cy="12" r="4"/>
+          <line x1="12" y1="2.5" x2="12" y2="5"/>
+          <line x1="12" y1="19" x2="12" y2="21.5"/>
+          <line x1="2.5" y1="12" x2="5" y2="12"/>
+          <line x1="19" y1="12" x2="21.5" y2="12"/>
+          <line x1="5.1" y1="5.1" x2="6.9" y2="6.9"/>
+          <line x1="17.1" y1="17.1" x2="18.9" y2="18.9"/>
+          <line x1="5.1" y1="18.9" x2="6.9" y2="17.1"/>
+          <line x1="17.1" y1="6.9" x2="18.9" y2="5.1"/>
+        </g>
+        <path class="theme-icon-moon" d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79Z"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Firmware Info</div>
+    <div class="info-item">
+      <span class="info-label">Version</span>
+      <span class="info-value" id="version">Loading...</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Size</span>
+      <span class="info-value" id="firmware-size">Loading...</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Timestamp</span>
+      <span class="info-value" id="timestamp">Loading...</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">MD5</span>
+      <span class="info-value mono small" id="firmware-md5">Loading...</span>
+    </div>
+    <button class="btn btn-secondary" id="refreshBtn">Refresh</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Flash Options</div>
+    <div class="setting">
+      <label class="checkbox-label">
+        <input type="checkbox" id="eraseCheckbox" checked>
+        <span>Erase all flash before install</span>
+      </label>
+    </div>
+    <div class="hint">When checked, the device will be fully erased before flashing. Recommended for first install.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Flash Firmware</div>
+    <div class="flash-button-row">
+      <esp-web-install-button id="installBtn">
+        <button class="btn btn-primary" slot="activate">Connect &amp; Flash</button>
+        <span slot="unsupported">Your browser does not support Web Serial. Use Chrome or Edge 89+.</span>
+        <span slot="not-allowed">Serial access is blocked. Allow serial access and reload.</span>
+      </esp-web-install-button>
+    </div>
+    <div class="hint">Requires Chrome/Edge 89+. Put your ESP32-C3 into download mode if prompted.</div>
+  </div>
+
+  <div class="card" id="logCard" style="display:none">
+    <div class="card-title">Flash Log</div>
+    <pre class="log" id="logOutput"></pre>
+  </div>
+
+  <div class="footer">
+    <div class="footer-brand">Dasai Mochi Shin Firmware Flasher</div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

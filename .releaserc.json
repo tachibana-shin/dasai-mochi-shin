@@ -1,0 +1,19 @@
+{
+  "branches": ["main"],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    ["@semantic-release/exec", {
+      "prepareCmd": "python3 scripts/generate-release-assets.py"
+    }],
+    ["@semantic-release/github", {
+      "assets": [
+        {"path": "dist/firmware.bin", "label": "Firmware"},
+        {"path": "dist/littlefs.bin", "label": "LittleFS filesystem"},
+        {"path": "dist/bootloader.bin", "label": "Bootloader"},
+        {"path": "dist/partitions.bin", "label": "Partition table"},
+        {"path": "dist/latest.json", "label": "Release manifest"}
+      ]
+    }]
+  ]
+}
