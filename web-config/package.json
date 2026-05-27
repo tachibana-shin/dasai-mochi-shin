@@ -14,7 +14,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node -e \"const fs=require('fs'),p=require('path');const d=p.resolve(__dirname,'../data');if(fs.existsSync(d))fs.rmSync(d,{recursive:true,force:true});fs.cpSync(p.resolve(__dirname,'dist'),d,{recursive:true});\"",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -26,6 +26,7 @@
     "primeicons": "^7.0.0",
     "primevue": "^4.5.4",
     "tailwindcss": "^4.2.1",
+    "vite-plugin-compression": "^0.5.1",
     "vue": "^3.5.30",
     "vue-i18n": "9"
   }

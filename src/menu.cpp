@@ -4,13 +4,11 @@
 
 #include <vector>
 
-#include "alarm.h"
 #include "audio_player.h"
 #include "chronos_manager.h"
 #include "config.h"
 #include "display.h"
 #include "e_locale.h"
-#include "reminder.h"
 #include "router.h"
 
 static std::vector<MenuItem> menuItems;
@@ -115,93 +113,6 @@ static void setupMenuItems() {
   };
   menuItems.push_back(neg);
 
-  // Drink Reminder
-  MenuItem drink(L(MSG_DRINK_REM), MenuItemType::TOGGLE);
-  drink.getValue = []() {
-    return config.drink.enabled ? String("ON") : String("OFF");
-  };
-  drink.onAction = []() {
-    config.drink.enabled = !config.drink.enabled;
-    saveConfig();
-    if (config.drink.enabled) initReminder();
-  };
-  menuItems.push_back(drink);
-
-  // Alarm (Simplistic toggle for first alarm)
-  MenuItem alarm(L(MSG_ALARM), MenuItemType::TOGGLE);
-  alarm.getValue = []() {
-    if (config.alarms.empty()) return String("N/A");
-    char buf[16];
-    sprintf(buf, "%02d:%02d %s", config.alarms[0].hour, config.alarms[0].minute,
-            config.alarms[0].enabled ? "ON" : "OFF");
-    return String(buf);
-  };
-  alarm.onAction = []() {
-    if (config.alarms.empty()) {
-      AlarmEntry e;
-      e.enabled = true;
-      e.hour = 7;
-      e.minute = 0;
-      config.alarms.push_back(e);
-    } else {
-      config.alarms[0].enabled = !config.alarms[0].enabled;
-    }
-    saveConfig();
-  };
-  menuItems.push_back(alarm);
-
-  // Alarm Repeat
-  MenuItem alarmRep(L(MSG_ALARM_REP), MenuItemType::ACTION);
-  alarmRep.getValue = []() {
-    if (config.alarms.empty()) return String("N/A");
-    uint8_t r = config.alarms[0].repeat;
-    if (r == 0 || r == 127) return String("Daily");
-    if (r == 31) return String("Mon-Fri");
-    if (r == 96) return String("Weekend");
-    if (r == 128) return String("Once");
-    return String("Custom");
-  };
-  alarmRep.onAction = []() {
-    if (config.alarms.empty()) return;
-    uint8_t& r = config.alarms[0].repeat;
-    if (r == 0 || r == 127)
-      r = 31;  // To Weekdays
-    else if (r == 31)
-      r = 96;  // To Weekend
-    else if (r == 96)
-      r = 128;  // To Once
-    else
-      r = 127;  // Back to Daily
-    saveConfig();
-  };
-  menuItems.push_back(alarmRep);
-
-  // Alarm Hour
-  MenuItem alarmH(L(MSG_ALARM_HOUR), MenuItemType::RANGE);
-  alarmH.getValue = []() {
-    if (config.alarms.empty()) return String("N/A");
-    return String(config.alarms[0].hour);
-  };
-  alarmH.onAction = []() {
-    if (config.alarms.empty()) return;
-    config.alarms[0].hour = (config.alarms[0].hour + 1) % 24;
-    saveConfig();
-  };
-  menuItems.push_back(alarmH);
-
-  // Alarm Minute
-  MenuItem alarmM(L(MSG_ALARM_MIN), MenuItemType::RANGE);
-  alarmM.getValue = []() {
-    if (config.alarms.empty()) return String("N/A");
-    return String(config.alarms[0].minute);
-  };
-  alarmM.onAction = []() {
-    if (config.alarms.empty()) return;
-    config.alarms[0].minute = (config.alarms[0].minute + 5) % 60;
-    saveConfig();
-  };
-  menuItems.push_back(alarmM);
-
   // Auto Off Hour
   MenuItem offH(L(MSG_AUTO_OFF_H), MenuItemType::RANGE);
   offH.getValue = []() { return String(config.autoOffHour); };
@@ -290,67 +201,6 @@ static void setupMenuItems() {
     config.mochiClockDuration = (unsigned long)secs * 1000;
     saveConfig();
   };
-  menuItems.push_back(mClockDur);
-
-  // Drink Start Hour
-  MenuItem dStart(L(MSG_DRINK_START), MenuItemType::RANGE);
-  dStart.getValue = []() { return String(config.drink.startHour); };
-  dStart.onAction = []() {
-    config.drink.startHour = (config.drink.startHour + 1) % 24;
-    saveConfig();
-  };
-  menuItems.push_back(dStart);
-
-  // Drink End Hour
-  MenuItem dEnd(L(MSG_DRINK_END), MenuItemType::RANGE);
-  dEnd.getValue = []() { return String(config.drink.endHour); };
-  dEnd.onAction = []() {
-    config.drink.endHour = (config.drink.endHour + 1) % 24;
-    saveConfig();
-  };
-  menuItems.push_back(dEnd);
-
-  // Drink Interval
-  MenuItem dInt(L(MSG_DRINK_INTERVAL), MenuItemType::RANGE);
-  dInt.getValue = []() { return String(config.drink.intervalMinutes) + "m"; };
-  dInt.onAction = []() {
-    int mins = config.drink.intervalMinutes;
-    if (mins < 30)
-      mins = 30;
-    else if (mins < 45)
-      mins = 45;
-    else if (mins < 60)
-      mins = 60;
-    else if (mins < 90)
-      mins = 90;
-    else if (mins < 120)
-      mins = 120;
-    else
-      mins = 30;
-    config.drink.intervalMinutes = mins;
-    saveConfig();
-  };
-  menuItems.push_back(dInt);
-
-  // Drink Goal
-  MenuItem dGoal(L(MSG_DRINK_GOAL), MenuItemType::RANGE);
-  dGoal.getValue = []() {
-    return String(config.drink.dailyGoalLiters, 1) + "L";
-  };
-  dGoal.onAction = []() {
-    float goal = config.drink.dailyGoalLiters;
-    goal += 0.5;
-    if (goal > 4.0) goal = 1.0;
-    config.drink.dailyGoalLiters = goal;
-    saveConfig();
-  };
-  menuItems.push_back(dGoal);
-
-  // Clear Missed
-  MenuItem dClear(L(MSG_CLEAR_MISSED), MenuItemType::ACTION);
-  dClear.getValue = []() { return String(getMissedReminders()); };
-  dClear.onAction = []() { resetMissedReminders(); };
-  menuItems.push_back(dClear);
 }
 
 void initMenu() {

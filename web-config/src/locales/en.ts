@@ -1,5 +1,8 @@
 export default {
   common: {
+    add: "Add",
+    scan: "Scan",
+    log: "Serial Log",
     connect: "Connect Device",
     disconnect: "Disconnect",
     save: "Save Configuration",
@@ -9,11 +12,14 @@ export default {
     connected: "Connected",
     disconnected: "Disconnected"
   },
+  display: {
+    brightness: "Brightness",
+  },
   tabs: {
     wifi: "WiFi",
     display: "Display",
-    drink: "Drink",
     mochi: "Mochi faces",
+    audio: "Audio",
     system: "System Info"
   },
   system: {

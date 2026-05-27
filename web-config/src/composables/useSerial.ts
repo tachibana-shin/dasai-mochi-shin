@@ -30,6 +30,7 @@ export function useSerial() {
 
   const send = async (data: string) => {
     if (writer.value) {
+      console.log("Serial TX:", data) // Debug log
       const encoder = new TextEncoder()
       await writer.value.write(encoder.encode(data + "\n"))
     }

@@ -3,25 +3,7 @@ export interface WifiEntry {
   pass: string;
 }
 
-export interface AlarmEntry {
-  enabled: boolean;
-  hour: number;
-  minute: number;
-  repeat: number; // Bitmask: 1=Mon, 2=Tue, 4=Wed, 8=Thu, 16=Fri, 32=Sat, 64=Sun, 128=Once
-}
-
-export interface DrinkConfig {
-  enabled: boolean;
-  startHour: number;
-  endHour: number;
-  intervalMinutes: number;
-  durationSeconds: number;
-  dailyGoalLiters: number;
-}
-
 export interface AudioConfig {
-  alarmEnabled: boolean;
-  drinkEnabled: boolean;
   notifyEnabled: boolean;
   volume: number; // 0-21
 }
@@ -35,8 +17,6 @@ export interface AppConfig {
   autoOnHour: number;
 
   wifi: WifiEntry[];
-  alarms: AlarmEntry[];
-  drink: DrinkConfig;
   audio: AudioConfig;
 
   pinScreenSDA: number;
@@ -77,7 +57,5 @@ export interface AppConfig {
 
   // Sound paths
   customClickSoundPath: string;
-  customDrinkSoundPath: string;
-  customAlarmSoundPath: string;
   customNotifySoundPath: string;
 }

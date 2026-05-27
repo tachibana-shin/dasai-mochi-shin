@@ -20,6 +20,7 @@ extern float _vw_u, _vh_unit;
 extern int _rem_u;
 
 void initDisplay();
+void applyDisplayConfig();
 void refreshUIUnits();
 void toggleScreen();
 void showMessage(const char* msg, uint32_t timeout = 1000, uint8_t mode = SHOW_WRAP);

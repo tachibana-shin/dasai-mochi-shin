@@ -5,7 +5,6 @@
 #include "config.h"
 #include "display.h"
 #include "e_locale.h"
-#include "reminder.h"
 #include "weather.h"
 #include "weather_icons.h"
 
@@ -63,33 +62,6 @@ void drawStatusBar() {
   }
   xPos -= spacing;
 
-  // 4. Drink Reminder Icon (Drop) - only if missed > 0
-  if (getMissedReminders() > 0) {
-    bool flash = (millis() / 500) % 2 == 0;
-    if (flash) {
-      u8g2->setFont(u8g2_font_open_iconic_weather_1x_t);
-      xPos -= 10;
-      u8g2->drawGlyph(xPos, yPos, 0x48); // drop icon
-      xPos -= spacing;
-    } else {
-      xPos -= (10 + spacing); // Keep space even when hidden during flash
-    }
-  }
-
-  // 5. Alarm Icon
-  bool anyAlarm = false;
-  for (const auto& a : config.alarms) {
-    if (a.enabled) {
-      anyAlarm = true;
-      break;
-    }
-  }
-  if (anyAlarm) {
-    u8g2->setFont(u8g2_font_open_iconic_embedded_1x_t);
-    xPos -= 10;
-    u8g2->drawGlyph(xPos, yPos, 65);
-    xPos -= spacing;
-  }
 }
 
 void drawMainClock() {

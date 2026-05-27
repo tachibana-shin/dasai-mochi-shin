@@ -35,6 +35,11 @@ static uint32_t messageTimeout = 0;
 static uint32_t messageStartTime = 0;
 static uint8_t messageMode = SHOW_WRAP;
 
+void applyDisplayConfig() {
+  if (!u8g2) return;
+  u8g2->setContrast(config.brightness);
+}
+
 void initDisplay() {
   displayMutex = xSemaphoreCreateMutex();
   // We use SH1106 as default, but can be expanded based on config

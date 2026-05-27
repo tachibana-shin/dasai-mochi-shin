@@ -146,14 +146,6 @@ void audioPlayDefault(SoundType type) {
       path = config.customClickSoundPath;
       enabled = config.audio.notifyEnabled;
       break;
-    case SOUND_DRINK:
-      path = config.customDrinkSoundPath;
-      enabled = config.audio.notifyEnabled;
-      break;
-    case SOUND_ALARM:
-      path = config.customAlarmSoundPath;
-      enabled = config.audio.alarmEnabled;
-      break;
     case SOUND_NOTIFY:
       path = config.customNotifySoundPath;
       enabled = config.audio.notifyEnabled;

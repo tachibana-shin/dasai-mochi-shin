@@ -3,7 +3,6 @@
 #include <WiFi.h>
 #include <esp_wifi.h>
 
-#include "alarm.h"
 #include "audio_player.h"
 #include "button.h"
 #include "chronos_manager.h"
@@ -12,19 +11,18 @@
 #include "dasai_mochi.h"
 #include "display.h"
 #include "filesystem.h"
-#include "reminder.h"
 #include "router.h"
 #include "time_utils.h"
 #include "weather.h"
-#include "web_usb.h"
+#include "web_server.h"
 #include "wifi_manager.h"
 
-void webUsbTask(void *pvParameters) {
-  for (;;) {
-    loopWebUsb();
-    vTaskDelay(pdMS_TO_TICKS(50));
-  }
-}
+// void webUsbTask(void *pvParameters) {
+//   for (;;) {
+//     loopWebUsb();
+//     vTaskDelay(pdMS_TO_TICKS(50));
+//   }
+// }
 
 void inputTask(void *pvParameters) {
   for (;;) {
@@ -37,14 +35,12 @@ void mainTask(void *pvParameters) {
   for (;;) {
     loopChronos();
     loopDisplay();
-    loopReminder();
-    loopAlarm();
 
     if (isShowingMessage()) {
       u8g2->clearBuffer();
       drawMessageContent();
       sendBuffer();
-    } else if (!isAlarmActive() && !isReminderActive()) {
+    } else {
       Router::loop();
     }
 
@@ -71,8 +67,7 @@ void setup() {
   initButton();
   initChronos();
   initWiFi();
-  initReminder();
-  initAlarm();
+  initWebServer(); // Initialize WiFi config server
   audioInit();
 
   initDasaiMochi();
@@ -80,7 +75,7 @@ void setup() {
   Serial.println("Setup complete");
 
   // Create tasks (No pinning needed for single-core ESP32-C3)
-  xTaskCreate(webUsbTask, "WebUsbTask", 4096, NULL, 2, NULL);
+  // xTaskCreate(webUsbTask, "WebUsbTask", 4096, NULL, 2, NULL);
   xTaskCreate(inputTask, "InputTask", 4096, NULL, 5, NULL);
   xTaskCreate(mainTask, "MainTask", 8192, NULL, 1, NULL);
 }

@@ -8,10 +8,15 @@
 #include "display.h"
 #include "e_locale.h"
 #include "router.h"
+#include "web_server.h"
 #include "time_utils.h"
 
+namespace {
+constexpr uint32_t kConfigPortalTimeoutSec = 180;
+}
+
 void initWiFi() {
-  WiFi.disconnect(true, true);
+  WiFi.disconnect(false, false);
   WiFi.mode(WIFI_MODE_APSTA);
 
   wifi_config_t cfg;
@@ -25,7 +30,7 @@ void initWiFi() {
 
     WiFiManager wm;
     wm.setClass("invert");
-    wm.setConfigPortalTimeout(1);
+    wm.setConfigPortalTimeout(kConfigPortalTimeoutSec);
     wm.setConnectTimeout(10);
     WiFi.setTxPower(WIFI_POWER_8_5dBm);
     WiFi.setSleep(true);
@@ -33,7 +38,11 @@ void initWiFi() {
 
     bool connected = wm.autoConnect(config.wifiAPName.c_str());
     if (connected) {
+      ensureMdnsStarted();
       WiFi.mode(WIFI_STA);  // Disable AP mode to save power
+      String ip = WiFi.localIP().toString();
+      Serial.printf("WiFi connected! IP: http://%s\n", ip.c_str());
+      showMessage(("IP: " + ip).c_str(), 3000);
     }
     clearMessage();
   }
@@ -79,7 +88,7 @@ void loopWiFiManager() {
   WiFiManager wm;
   wm.setClass("invert");
   wm.setConnectTimeout(10);
-  wm.setConfigPortalTimeout(180);
+  wm.setConfigPortalTimeout(kConfigPortalTimeoutSec);
   WiFi.setTxPower(WIFI_POWER_8_5dBm);
 
   bool ok = wm.autoConnect(config.wifiAPName.c_str());
@@ -87,6 +96,7 @@ void loopWiFiManager() {
     Serial.println("[WiFiManager] Failed or timeout");
     showMessage(L(MSG_WIFI_FAILED), 1500);
   } else {
+    ensureMdnsStarted();
     String msg = String(L(MSG_WIFI_CONNECTED)) + ":\n" + wm.getWiFiSSID();
     showMessage(msg.c_str(), 1500);
   }

@@ -1,5 +1,8 @@
 export default {
   common: {
+    add: "Thêm",
+    scan: "Quét",
+    log: "Nhật ký",
     connect: "Kết nối thiết bị",
     disconnect: "Ngắt kết nối",
     save: "Lưu cấu hình",
@@ -9,11 +12,14 @@ export default {
     connected: "Đã kết nối",
     disconnected: "Chưa kết nối"
   },
+  display: {
+    brightness: "Độ sáng",
+  },
   tabs: {
     wifi: "WiFi",
     display: "Màn hình",
-    drink: "Uống nước",
     mochi: "Mochi Face",
+    audio: "Âm thanh",
     system: "Thông tin hệ thống"
   },
   system: {

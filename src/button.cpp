@@ -2,12 +2,10 @@
 
 #include <Arduino.h>
 
-#include "alarm.h"
 #include "audio_player.h"
 #include "config.h"
 #include "display.h"
 #include "menu.h"
-#include "reminder.h"
 #include "router.h"
 #include "wifi_manager.h"
 
@@ -24,15 +22,7 @@ static void handleClick() {
   if (isShowingMessage()) {
     clearMessage();
   }
-  if (isAlarmActive()) {
-    stopAlarm();
-    return;
-  }
   Serial.println("click");
-  if (isReminderActive()) {
-    confirmDrink();
-    return;
-  }
   if (Router::current() == Route::SETTINGS) {
     handleMenuClick();
     return;

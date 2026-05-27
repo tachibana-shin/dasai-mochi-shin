@@ -4,7 +4,7 @@
 #include <FS.h>
 #include <SD.h>
 #include <SPI.h>
-#include <SPIFFS.h>
+#include <LittleFS.h>
 
 #include "filesystem.h"
 
@@ -41,39 +41,13 @@ void AppConfig::fromJson(const JsonObject& doc) {
   screenWidth = doc["screenWidth"] | screenWidth;
   screenHeight = doc["screenHeight"] | screenHeight;
 
-  alarms.clear();
-  if (doc["alarms"].is<JsonArray>()) {
-    for (JsonObject a : doc["alarms"].as<JsonArray>()) {
-      AlarmEntry e;
-      e.enabled = a["enabled"] | false;
-      e.hour = a["hour"] | 0;
-      e.minute = a["minute"] | 0;
-      e.repeat = a["repeat"] | 0;
-      alarms.push_back(e);
-    }
-  }
-
-  JsonObject d = doc["drink"];
-  if (!d.isNull()) {
-    drink.enabled = d["enabled"] | drink.enabled;
-    drink.startHour = d["startHour"] | drink.startHour;
-    drink.endHour = d["endHour"] | drink.endHour;
-    drink.intervalMinutes = d["intervalMinutes"] | drink.intervalMinutes;
-    drink.durationSeconds = d["durationSeconds"] | drink.durationSeconds;
-    drink.dailyGoalLiters = d["dailyGoalLiters"] | drink.dailyGoalLiters;
-  }
-
   JsonObject audioDoc = doc["audio"];
   if (!audioDoc.isNull()) {
-    audio.alarmEnabled = audioDoc["alarmEnabled"] | audio.alarmEnabled;
-    audio.drinkEnabled = audioDoc["drinkEnabled"] | audio.drinkEnabled;
     audio.notifyEnabled = audioDoc["notifyEnabled"] | audio.notifyEnabled;
     audio.volume = audioDoc["volume"] | audio.volume;
   }
 
   customClickSoundPath = doc["customClickSoundPath"] | customClickSoundPath;
-  customDrinkSoundPath = doc["customDrinkSoundPath"] | customDrinkSoundPath;
-  customAlarmSoundPath = doc["customAlarmSoundPath"] | customAlarmSoundPath;
   customNotifySoundPath = doc["customNotifySoundPath"] | customNotifySoundPath;
 
   wifi.clear();
@@ -132,32 +106,11 @@ void AppConfig::toJson(JsonDocument& doc) const {
   doc["screenWidth"] = screenWidth;
   doc["screenHeight"] = screenHeight;
 
-  JsonArray alarmArr = doc["alarms"].to<JsonArray>();
-  for (const auto& a : alarms) {
-    JsonObject obj = alarmArr.add<JsonObject>();
-    obj["enabled"] = a.enabled;
-    obj["hour"] = a.hour;
-    obj["minute"] = a.minute;
-    obj["repeat"] = a.repeat;
-  }
-
-  JsonObject dObj = doc["drink"].to<JsonObject>();
-  dObj["enabled"] = drink.enabled;
-  dObj["startHour"] = drink.startHour;
-  dObj["endHour"] = drink.endHour;
-  dObj["intervalMinutes"] = drink.intervalMinutes;
-  dObj["durationSeconds"] = drink.durationSeconds;
-  dObj["dailyGoalLiters"] = drink.dailyGoalLiters;
-
   JsonObject audioObj = doc["audio"].to<JsonObject>();
-  audioObj["alarmEnabled"] = audio.alarmEnabled;
-  audioObj["drinkEnabled"] = audio.drinkEnabled;
   audioObj["notifyEnabled"] = audio.notifyEnabled;
   audioObj["volume"] = audio.volume;
 
   doc["customClickSoundPath"] = customClickSoundPath;
-  doc["customDrinkSoundPath"] = customDrinkSoundPath;
-  doc["customAlarmSoundPath"] = customAlarmSoundPath;
   doc["customNotifySoundPath"] = customNotifySoundPath;
 
   JsonArray arr = doc["wifi"].to<JsonArray>();
@@ -261,8 +214,8 @@ bool saveBootConfig() {
   config.toJsonBoot(doc);
 
   fs::File configFile = getFile("/boot_config.json", FILE_WRITE, false);
-  if (!SPIFFS.begin(true)) {
-    Serial.println("SPIFFS mount failed");
+  if (!LittleFS.begin(true)) {
+    Serial.println("LittleFS mount failed");
     return false;
   }
 

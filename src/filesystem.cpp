@@ -1,7 +1,7 @@
 #include "filesystem.h"
 
 #include <SD.h>
-#include <SPIFFS.h>
+#include <LittleFS.h>
 
 #include <vector>
 
@@ -11,9 +11,9 @@ bool sdInitialized = false;
 SPIClass sdSPI(FSPI);
 
 void initFFS() {
-  // SD を使わない、または SD が未初期化 → SPIFFS を使う
-  if (!SPIFFS.begin(true)) {
-    Serial.println("SPIFFS mount failed");
+  // SD を使わない、または SD が未初期化 → LittleFS を使う
+  if (!LittleFS.begin(true)) {
+    Serial.println("LittleFS mount failed");
     return;
   }
 }
@@ -35,6 +35,24 @@ void initFilesystem() {
     Serial.println("Failed to create folders for homePath");
     return;
   }
+
+  std::vector<String> dirs = {"/"};
+  while (!dirs.empty()) {
+    String d = dirs.back(); dirs.pop_back();
+    File root = LittleFS.open(d);
+    if (!root || !root.isDirectory()) continue;
+    File f = root.openNextFile();
+    while (f) {
+      String name = f.name();
+      size_t sz = f.size();
+      bool isDir = f.isDirectory();
+      if (isDir) { dirs.push_back(name); }
+      else { Serial.printf("[littlefs] %s (%u)\n", name.c_str(), sz); }
+      f.close();
+      f = root.openNextFile();
+    }
+    root.close();
+  }
 }
 
 fs::File getFile(const String& path, const char* mode, bool useSD) {
@@ -49,9 +67,9 @@ fs::File getFile(const String& path, const char* mode, bool useSD) {
     return file;
   }
 
-  file = SPIFFS.open(path, mode);
+  file = LittleFS.open(path, mode);
   if (!file) {
-    Serial.println("Failed to open " + path + " on SPIFFS with mode " + mode);
+    Serial.println("Failed to open " + path + " on LittleFS with mode " + mode);
     return fs::File();
   }
 
@@ -65,7 +83,7 @@ std::vector<String> readdir(const String& path, bool useSD) {
   if (useSD && sdInitialized) {
     root = SD.open(path);
   } else {
-    root = SPIFFS.open(path);
+    root = LittleFS.open(path);
   }
 
   if (!root || !root.isDirectory()) {
@@ -102,10 +120,10 @@ bool ensureDirectories(const String& fullPath) {
 
     // フォルダ名が確定したタイミングで mkdir
     if (c == '/') {
-      if (!SPIFFS.exists(current)) {
+      if (!LittleFS.exists(current)) {
         // 存在しなければ作成
         // mkdir は途中階層でも OK
-        if (!SPIFFS.mkdir(current)) {
+        if (!LittleFS.mkdir(current)) {
           Serial.printf("Failed to mkdir: %s\n", current.c_str());
           return false;
         }

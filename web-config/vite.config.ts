@@ -1,11 +1,19 @@
 import { defineConfig } from "vite"
 import vue from "@vitejs/plugin-vue"
 import tailwindcss from "@tailwindcss/vite"
+import compression from "vite-plugin-compression"
 
 export default defineConfig({
-  plugins: [vue(), tailwindcss()],
+  plugins: [
+    vue(),
+    tailwindcss(),
+    compression({ algorithm: "gzip", ext: ".gz", deleteOriginFile: true }),
+  ],
   server: {
-    port: 3000
+    port: 3000,
+    proxy: {
+      "/api": "http://192.168.0.42/api"
+    }
   },
   build: {
     target: "esnext"

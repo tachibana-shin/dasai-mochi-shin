@@ -10,14 +10,11 @@ const LocaleInfo locale_vi = {
     {"CN", "T2", "T3", "T4", "T5", "T6", "T7"},
     {
         "SA", "CH", "Độ sáng", "WiFi", "Bluetooth", "Ngôn ngữ", "Múi giờ",
-        "Xoay màn hình", "Màu âm bản", "Nhắc uống nước", "Báo thức", "Lặp lại",
-        "Giờ báo thức", "Phút báo thức", "Giờ tự tắt", "Giờ tự bật",
-        "Cập nhật t.tiết", "Tốc độ Mochi", "Mochi âm bản", "Âm báo thức",
-        "Âm nhắc uống", "Âm thông báo", "Âm lượng", "Quay lại",
-        "Đã tới giờ uống nước!", "Hãy uống 200ml nhé", "Nhấn 1 click để xác nhận",
-        "Bỏ lỡ lần uống nước!", "Rất tốt! Đã ghi nhận.", "BÁO THỨC!", "Nhấn 1 click để dừng",
+        "Xoay màn hình", "Màu âm bản", "Giờ tự tắt", "Giờ tự bật",
+        "Cập nhật t.tiết", "Tốc độ Mochi", "Mochi âm bản", "Âm thông báo",
+        "Âm lượng", "Quay lại",
         "WiFi lỗi", "WiFi đã kết nối", "Không tìm thấy file GIF", "Bật", "Tắt",
-        "Định dạng giờ", "Khoảng cách hiện ĐH", "Thời gian hiện ĐH", "Bắt đầu nhắc", "Kết thúc nhắc", "Chu kỳ nhắc", "Lượng nước mục tiêu", "Xóa lần bỏ lỡ"
+        "Định dạng giờ", "Khoảng cách hiện ĐH", "Thời gian hiện ĐH"
     }
 };
 
@@ -29,14 +26,11 @@ const LocaleInfo locale_en = {
     {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"},
     {
         "AM", "PM", "Brightness", "WiFi", "Bluetooth", "Language", "GMT Offset",
-        "Flip Screen", "Negative", "Drink Rem", "Alarm", "Repeat",
-        "Alarm Hour", "Alarm Min", "Auto Off H", "Auto On H",
-        "Weather Int", "Mochi Spd", "Mochi Neg", "Alarm Sound",
-        "Drink Sound", "Notify Sound", "Volume", "Back",
-        "It's time to drink water!", "Please drink 200ml", "Single click to confirm",
-        "Missed drink reminder!", "Great! Recorded.", "ALARM!", "Single click to stop",
+        "Flip Screen", "Negative", "Auto Off H", "Auto On H",
+        "Weather Int", "Mochi Spd", "Mochi Neg", "Notify Sound",
+        "Volume", "Back",
         "WiFi Failed", "WiFi Connected", "No GIF files found", "ON", "OFF",
-        "Time Format", "Mochi Clock Int", "Mochi Clock Dur", "Drink Start", "Drink End", "Drink Interval", "Daily Goal", "Clear Missed"
+        "Time Format", "Mochi Clock Int", "Mochi Clock Dur"
     }
 };
 
